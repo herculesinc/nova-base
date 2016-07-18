@@ -1,0 +1,31 @@
+{
+  "name": "nova-core",
+  "version": "0.1.0",
+  "description": "Foundation for Nova API framework",
+  "keywords": [
+    "nova",
+    "action",
+    "framework"
+  ],
+  "main": "index.js",
+  "license": "MIT",
+  "author": {
+    "name": "Credo360, Inc.",
+    "email": "developers@credo360.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/herculesinc/nova-core.git"
+  },
+  "engines": {
+    "node": "6.3.x"
+  },
+  "devDependencies": {
+    "del": "2.2.x",
+    "gulp": "3.9.x"
+  },
+  "dependencies": {
+    "gulp-mocha": "^2.2.0",
+    "gulp-util": "^3.0.7"
+  }
+}
