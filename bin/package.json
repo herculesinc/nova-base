@@ -25,4 +25,5 @@
     "gulp": "3.9.x",
     "gulp-mocha": "2.2.x",
     "gulp-util": "3.0.x"
+  }
 }
