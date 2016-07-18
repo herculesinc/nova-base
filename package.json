@@ -1,5 +1,5 @@
 {
-  "name": "nova-core",
+  "name": "nova-base",
   "version": "0.1.0",
   "description": "Foundation for Nova API framework",
   "keywords": [
@@ -15,7 +15,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/herculesinc/nova-core.git"
+    "url": "https://github.com/herculesinc/nova-base.git"
   },
   "engines": {
     "node": "6.3.x"
