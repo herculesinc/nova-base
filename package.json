@@ -34,6 +34,7 @@
     "gulp-util": "3.0.x",
     "mocha": "^2.5.3",
     "sinon": "^1.17.4",
+    "through2": "^2.0.1",
     "typescript": "^2.1.0-dev.20160719",
     "typings": "^1.3.1"
   }

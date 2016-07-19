@@ -8,6 +8,7 @@ const del      = require( 'del' );
 const exec     = require( 'child_process' ).exec;
 const mocha    = require( 'gulp-mocha' );
 const gutil    = require( 'gulp-util' );
+const through2 = require( 'through2' ).obj;
 
 var tsProject = ts.createProject( {
     target    : 'es6',
@@ -50,9 +51,12 @@ gulp.task( 'clean:test', function( cb ) {
 } );
 
 gulp.task( 'tests:mocha', function() {
-    return gulp.src( './tests/**/*.spec.ts' )
+    return gulp.src( [ './tests/**/*.ts' ] )
         .pipe( ts( tsProject ) )
-        .pipe( gulp.dest( 'tests/bin' ) )
+        .pipe( gulp.dest( 'bin/tests' ) )
+        .pipe( through2( ( file, enc, cb ) => {
+            cb( null, file.relative.match( /\.spec\.js$/ ) ? file : null );
+        } ) )
         .pipe( mocha( { reporter: 'spec', bail: false } ) )
         .on( 'error', err => {
             if ( err && ( !err.message || !err.message.match( /failed/ ) ) ) {
