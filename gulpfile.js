@@ -47,7 +47,7 @@ gulp.task('build', ['compile'], function (cb) {
 
 // run tests
 gulp.task( 'clean:test', function( cb ) {
-  del( [ './tests/bin' ] ).then( () => { cb(); } );
+  del( [ './bin/tests' ] ).then( () => { cb(); } );
 } );
 
 gulp.task( 'tests:mocha', function() {

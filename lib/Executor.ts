@@ -28,26 +28,26 @@ export interface ExecutorContext {
     dispatcher      : Dispatcher;
     notifier        : Notifier;
     limiter?        : RateLimiter;
-    logger?         : Logger; 
+    logger?         : Logger;
     settings?       : any;
 }
 
 // CLASS DEFINITION
 // ================================================================================================
 export class Executor<V,T> {
-    
+
     authenticator   : Authenticator;
     database        : Database;
     cache           : Cache;
     dispatcher      : Dispatcher;
     notifier        : Notifier;
     limiter?        : RateLimiter;
-    logger?         : Logger; 
+    logger?         : Logger;
     settings?       : any;
-    
+
     action          : Action<V,T>;
     adapter?        : ActionAdapter<V>;
-    
+
     daoOptions?     : DaoOptions;
     rateOptions?    : RateOptions;
     authOptions?    : any;
@@ -71,10 +71,10 @@ export class Executor<V,T> {
         this.limiter        = context.limiter;
         this.logger         = context.logger;
         this.settings       = context.settings;
-        
+
         this.action         = action;
         this.adapter        = adapter;
-        
+
         if (options) {
             this.daoOptions     = options.daoOptions;
             this.rateOptions    = options.rateOptions;
@@ -85,44 +85,44 @@ export class Executor<V,T> {
             this.errorsToLog    = ErrorLogOptions.Server;
         }
     }
-    
+
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
     async execute(inputs: any, requestor?: AuthInputs | string): Promise<T> {
         var dao: Dao, authInfo: any;
         const start = process.hrtime();
-        
+
         try {
             this.logger && this.logger.debug(`Executing ${this.action.name} action`);
-        
+
             // enforce rate limit
             if (this.rateOptions && requestor) {
                 const scope: RateScope = this.rateOptions.scope || RateScope.Global;
 
-                const key = (typeof requestor !== 'string') 
+                const key = (typeof requestor !== 'string')
                     ? `${requestor.scheme}::${requestor.credentials}` : requestor;
 
-                const localTry = (scope & RateScope.Local) 
+                const localTry = (scope & RateScope.Local)
                     ? this.limiter.try(`${key}::${this.action.name}`, this.rateOptions) : undefined;
 
                 const globalTry = (scope & RateScope.Global)
                     ? this.limiter.try(key, this.rateOptions) : undefined;
-                
+
                 await Promise.all([localTry, globalTry]);
             }
 
             // open database connection, create context, and authenticate action if needed
-            dao = await this.database.connect(this.daoOptions);   
-            const context = new ActionContext(dao, this.cache, this.logger, this.settings); 
+            dao = await this.database.connect(this.daoOptions);
+            const context = new ActionContext(dao, this.cache, this.logger, this.settings);
             if (typeof requestor !== 'string') {
                 authInfo = await this.authenticator.call(this, requestor, this.authOptions);
             }
-            
+
             // execute action and release database connection
             inputs = this.adapter ? await this.adapter.call(context, inputs, authInfo) : inputs;
             const result: T = await this.action.call(this, inputs);
             await (dao.inTransaction ? dao.release('commit') : dao.release());
-        
+
             // invalidate cache items
             if (context.keys.size > 0) {
                 this.cache.clear(Array.from(context.keys));
@@ -130,12 +130,12 @@ export class Executor<V,T> {
 
             // send out tasks and notices
             const taskPromise = this.dispatcher.dispatch(context.tasks);
-            const noticePromise = this.notifier.send(context.notices);         
+            const noticePromise = this.notifier.send(context.notices);
             await Promise.all([taskPromise, noticePromise]);
-        
+
             // log executiong time and return the result
             this.logger && this.logger.log(`Executed ${this.action.name}`, { time: since(start) });
-            return result;    
+            return result;
         }
         catch (error) {
             // if DAO connection is open, close it
@@ -166,7 +166,7 @@ export class Executor<V,T> {
 function validateContext(context: ExecutorContext, options: ExecutionOptions) {
 
     if (!context) throw new Error('Cannot create an Executor: context is undefined');
-    
+
     // authenticator
     if (!context.authenticator) throw new Error('Cannot create an Executor: Authentiator is undefined');
     if (typeof context.authenticator !== 'function') throw new Error('Cannot create an Executor: Authenticator is invalid');
