@@ -64,6 +64,7 @@ class Executor {
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
                 const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings);
+
                 if (typeof requestor !== 'string') {
                     authInfo = yield this.authenticator.call(this, requestor, this.authOptions);
                 }

@@ -9,3 +9,7 @@ node_modules/
 
 # .npmignore in bin folder
 /bin/.npmignore
+
+# other
+typings
+.idea

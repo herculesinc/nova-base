@@ -6,7 +6,7 @@ import { Database, Dao, DaoOptions } from './../../index';
 // =================================================================================================
 export class MockDatabase {
     connect(options?: DaoOptions): Promise<Dao> {
-        console.log('Connecting to the database');
+        // console.log('Connecting to the database');
         return Promise.resolve(new MockDao(options));
     }
 }
@@ -25,7 +25,7 @@ export class MockDao implements Dao {
     release(action?: 'commit' | 'rollback'): Promise<any> {
         this.inTransaction = false;
         this.isActive = false;
-        console.log(`Releasing database connection: ${action}`)
+        // console.log(`Releasing database connection: ${action}`)
         return Promise.resolve();
     }
 }

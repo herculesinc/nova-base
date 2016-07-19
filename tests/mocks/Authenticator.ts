@@ -20,12 +20,12 @@ export function authenticate(this: ActionContext, inputs: AuthInputs, options: a
         if (inputs.scheme === 'token') {
             const user = TOKEN_USER_MAP[inputs.credentials];
             validate.authorized(user, 'Invalid token');
-            this.logger.debug(`Authenticated ${user} via token`);
+            this.logger && this.logger.debug(`Authenticated ${user} via token`);
             return Promise.resolve(user);
         }
         else if (inputs.scheme === 'key') {
             validate.authorized(inputs.credentials === KEY, 'Invalid Key');
-            this.logger.debug(`Authenticated API key`);
+            this.logger && this.logger.debug(`Authenticated API key`);
             return Promise.resolve();
         }
     }
