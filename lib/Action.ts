@@ -49,6 +49,8 @@ export class ActionContext {
         this.registerNotice(taskOrNotice as Notice);
     }
     
+    // TODO: add methods for clearing tasks/notices with a filter
+
     invalidate(key: string) {
         if (!key) return;
         this.keys.add(key);

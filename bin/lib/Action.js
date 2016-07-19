@@ -20,6 +20,7 @@ class ActionContext {
         this.registerTask(taskOrNotice);
         this.registerNotice(taskOrNotice);
     }
+    // TODO: add methods for clearing tasks/notices with a filter
     invalidate(key) {
         if (!key)
             return;

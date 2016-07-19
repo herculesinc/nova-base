@@ -127,7 +127,14 @@ function validateContext(context, options) {
     // cache
     if (!context.cache)
         throw new Error('Cannot create an Executor: Cannot create an Executor: Cache is undefined');
-    // TODO: check for cache functions
+    if (typeof context.cache.get !== 'function')
+        throw new Error('Cannot create an Executor: Cache is invalid');
+    if (typeof context.cache.set !== 'function')
+        throw new Error('Cannot create an Executor: Cache is invalid');
+    if (typeof context.cache.execute !== 'function')
+        throw new Error('Cannot create an Executor: Cache is invalid');
+    if (typeof context.cache.clear !== 'function')
+        throw new Error('Cannot create an Executor: Cache is invalid');
     // dispatcher
     if (!context.dispatcher)
         throw new Error('Cannot create an Executor: Dispatcher is undefined');

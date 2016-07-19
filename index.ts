@@ -41,13 +41,15 @@ export interface Cache {
     set(key: string, value: any, expires?: number);
     execute(script: string, keys: string[], parameters: any[]): Promise<any>;
     
-    clear(keyOrKeys: string | string[]);
+    clear(key: string);
+    clear(keys: string[]);
 }
 
 // DISPATCHER
 // ------------------------------------------------------------------------------------------------
 export interface Dispatcher {
-    dispatch(taksOrTasks: Task | Task[]): Promise<any>;
+    dispatch(task: Task): Promise<any>;
+    dispatch(tasks: Task[]): Promise<any>;
 }
 
 export interface Task {
@@ -58,7 +60,8 @@ export interface Task {
 // NOTIFIER
 // ------------------------------------------------------------------------------------------------
 export interface Notifier {
-    send(noticeOrNotices: Notice | Notice[]): Promise<any>;
+    send(notice: Notice): Promise<any>;
+    send(notices: Notice[]): Promise<any>;
 }
 
 export interface Notice {
@@ -112,4 +115,4 @@ export const util = {
 // =================================================================================================
 export { Executor } from './lib/Executor';
 export { validate } from './lib/validator';
-export { ClientError, InternalServerError } from './lib/errors';
+export { ClientError, ServerError, InternalServerError } from './lib/errors';

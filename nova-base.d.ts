@@ -89,13 +89,15 @@ declare module "nova-base" {
         set(key: string, value: any, expires?: number);
         execute(script: string, keys: string[], parameters: any[]): Promise<any>;
 
-        clear(keyOrKeys: string | string[]);
+        clear(key: string);
+        clear(keys: string[]);
     }
 
     // DISPATCHER
     // --------------------------------------------------------------------------------------------
     export interface Dispatcher {
-        dispatch(taksOrTasks: Task | Task[]): Promise<any>;
+        dispatch(task: Task): Promise<any>;
+        dispatch(tasks: Task[]): Promise<any>;
     }
 
     export interface Task {
@@ -106,7 +108,8 @@ declare module "nova-base" {
     // NOTIFIER
     // --------------------------------------------------------------------------------------------
     export interface Notifier {
-        send(noticeOrNotices: Notice | Notice[]): Promise<any>;
+        send(notice: Notice): Promise<any>;
+        send(notices: Notice[]): Promise<any>;
     }
 
     export interface Notice {

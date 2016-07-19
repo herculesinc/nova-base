@@ -15,5 +15,6 @@ var validator_1 = require('./lib/validator');
 exports.validate = validator_1.validate;
 var errors_1 = require('./lib/errors');
 exports.ClientError = errors_1.ClientError;
+exports.ServerError = errors_1.ServerError;
 exports.InternalServerError = errors_1.InternalServerError;
 //# sourceMappingURL=index.js.map
