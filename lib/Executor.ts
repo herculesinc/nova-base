@@ -14,7 +14,11 @@ export interface ExecutionOptions {
 	daoOptions?     : DaoOptions;
     rateOptions?    : RateOptions;
     authOptions?    : any;
-    errorLogging?   : ErrorLogOptions;
+    errorsToLog?    : ErrorLogOptions;
+}
+
+export const enum ErrorLogOptions {
+    None = 0, Client = 1, Server = 2, All = 3
 }
 
 export interface ExecutorContext {
@@ -26,10 +30,6 @@ export interface ExecutorContext {
     limiter?        : RateLimiter;
     logger?         : Logger; 
     settings?       : any;
-}
-
-export const enum ErrorLogOptions {
-    none = 0, client = 1, server = 2
 }
 
 // CLASS DEFINITION
@@ -51,8 +51,7 @@ export class Executor<V,T> {
     daoOptions?     : DaoOptions;
     rateOptions?    : RateOptions;
     authOptions?    : any;
-    
-    errorLogging    : ErrorLogOptions;
+    errorsToLog     : ErrorLogOptions;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -63,6 +62,7 @@ export class Executor<V,T> {
         validateAction(action);
         if (adapter) validateAdapter(adapter);
 
+        // initialize instance variables
         this.authenticator  = context.authenticator;
         this.database       = context.database;
         this.cache          = context.cache;
@@ -79,10 +79,10 @@ export class Executor<V,T> {
             this.daoOptions     = options.daoOptions;
             this.rateOptions    = options.rateOptions;
             this.authOptions    = options.authOptions;
-            this.errorLogging   = options.errorLogging;
+            this.errorsToLog    = options.errorsToLog || ErrorLogOptions.Server;
         }
         else {
-
+            this.errorsToLog    = ErrorLogOptions.Server;
         }
     }
     
@@ -123,7 +123,10 @@ export class Executor<V,T> {
             const result: T = await this.action.call(this, inputs);
             await (dao.inTransaction ? dao.release('commit') : dao.release());
         
-            // TODO: invalidate cache items
+            // invalidate cache items
+            if (context.keys.size > 0) {
+                this.cache.clear(Array.from(context.keys));
+            }
 
             // send out tasks and notices
             const taskPromise = this.dispatcher.dispatch(context.tasks);
@@ -142,15 +145,15 @@ export class Executor<V,T> {
 
             // log the error, if needed
             if (error instanceof ClientError) {
-                if (this.logger && (this.errorLogging | ErrorLogOptions.client)) this.logger.error(error);
+                if (this.logger && (this.errorsToLog & ErrorLogOptions.Client)) this.logger.error(error);
             }
             else if (error instanceof ServerError) {
-                if (this.logger && (this.errorLogging & ErrorLogOptions.server)) this.logger.error(error);
+                if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
             }
             else {
                 // if unknow error is encountred, assume the error is critical
                 error = new InternalServerError(`Failed to execute ${this.action.name}`, error, true);
-                if (this.logger && (this.errorLogging & ErrorLogOptions.server)) this.logger.error(error);
+                if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
             }
 
             return Promise.reject<any>(error);

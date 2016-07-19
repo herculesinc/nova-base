@@ -12,6 +12,7 @@ class ActionContext {
         this.settings = settings;
         this.tasks = [];
         this.notices = [];
+        this.keys = new Set();
     }
     register(taskOrNotice) {
         if (!taskOrNotice)
@@ -19,9 +20,13 @@ class ActionContext {
         this.registerTask(taskOrNotice);
         this.registerNotice(taskOrNotice);
     }
-    clear() {
+    invalidate(key) {
+        if (!key)
+            return;
+        this.keys.add(key);
     }
-    invalidate(prefix, key) {
+    isInvalid(key) {
+        return this.keys.has(key);
     }
     run(action, inputs) {
         // TODO: log action start/end

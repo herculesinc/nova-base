@@ -35,16 +35,12 @@ export interface Dao {
 // CACHE
 // ------------------------------------------------------------------------------------------------
 export interface Cache {
-    prefix(prefix: string): Cache;
-
     get(key: string): Promise<any>;
-    getAll(keys: string[]): Promise<any[]>;
+    get(keys: string[]): Promise<any[]>;
+
     set(key: string, value: any, expires?: number);
-
-
-    update(key: string, field: string, value: any);
-
     execute(script: string, keys: string[], parameters: any[]): Promise<any>;
+    
     clear(keyOrKeys: string | string[]);
 }
 

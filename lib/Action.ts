@@ -24,6 +24,7 @@ export class ActionContext {
     
     tasks   : Task[];
     notices : Notice[];
+    keys    : Set<string>;
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -35,6 +36,7 @@ export class ActionContext {
         
         this.tasks = [];
         this.notices = [];
+        this.keys = new Set();
     }
     
     // PUBLIC MEMBERS
@@ -47,12 +49,13 @@ export class ActionContext {
         this.registerNotice(taskOrNotice as Notice);
     }
     
-    clear() {
-
+    invalidate(key: string) {
+        if (!key) return;
+        this.keys.add(key);
     }
 
-    invalidate(prefix: string, key: string) {
-        
+    isInvalid(key: string): boolean {
+        return this.keys.has(key);
     }
     
 	run<V,T>(action: Action<V,T>, inputs: V): Promise<T> {

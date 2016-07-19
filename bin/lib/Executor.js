@@ -21,6 +21,7 @@ class Executor {
         validateAction(action);
         if (adapter)
             validateAdapter(adapter);
+        // initialize instance variables
         this.authenticator = context.authenticator;
         this.database = context.database;
         this.cache = context.cache;
@@ -35,9 +36,10 @@ class Executor {
             this.daoOptions = options.daoOptions;
             this.rateOptions = options.rateOptions;
             this.authOptions = options.authOptions;
-            this.errorLogging = options.errorLogging;
+            this.errorsToLog = options.errorsToLog || 2 /* Server */;
         }
         else {
+            this.errorsToLog = 2 /* Server */;
         }
     }
     // PUBLIC METHODS
@@ -69,7 +71,10 @@ class Executor {
                 inputs = this.adapter ? yield this.adapter.call(context, inputs, authInfo) : inputs;
                 const result = yield this.action.call(this, inputs);
                 yield (dao.inTransaction ? dao.release('commit') : dao.release());
-                // TODO: invalidate cache items
+                // invalidate cache items
+                if (context.keys.size > 0) {
+                    this.cache.clear(Array.from(context.keys));
+                }
                 // send out tasks and notices
                 const taskPromise = this.dispatcher.dispatch(context.tasks);
                 const noticePromise = this.notifier.send(context.notices);
@@ -85,17 +90,17 @@ class Executor {
                 }
                 // log the error, if needed
                 if (error instanceof errors_1.ClientError) {
-                    if (this.logger && (this.errorLogging | 1 /* client */))
+                    if (this.logger && (this.errorsToLog & 1 /* Client */))
                         this.logger.error(error);
                 }
                 else if (error instanceof errors_1.ServerError) {
-                    if (this.logger && (this.errorLogging & 2 /* server */))
+                    if (this.logger && (this.errorsToLog & 2 /* Server */))
                         this.logger.error(error);
                 }
                 else {
                     // if unknow error is encountred, assume the error is critical
                     error = new errors_1.InternalServerError(`Failed to execute ${this.action.name}`, error, true);
-                    if (this.logger && (this.errorLogging & 2 /* server */))
+                    if (this.logger && (this.errorsToLog & 2 /* Server */))
                         this.logger.error(error);
                 }
                 return Promise.reject(error);

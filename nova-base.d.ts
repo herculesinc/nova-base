@@ -18,6 +18,9 @@ declare module "nova-base" {
         register(task: Task);
         register(notice: Notice);
 
+        invalidate(key: string);
+        isInvalid(key: string): boolean;
+
         run<V,T>(action: Action<V,T>, inputs: V): Promise<T>;
     }
 
@@ -27,6 +30,11 @@ declare module "nova-base" {
         daoOptions?     : DaoOptions;
         rateOptions?    : RateOptions;
         authOptions?    : any;
+        errorsToLog?    : ErrorLogOptions;
+    }
+
+    export const enum ErrorLogOptions {
+        None = 0, Client = 1, Server = 2, All = 3
     }
 
     export interface ExecutorContext {
@@ -75,16 +83,12 @@ declare module "nova-base" {
     // CACHE
     // --------------------------------------------------------------------------------------------
     export interface Cache {
-        prefix(prefix: string): Cache;
-
         get(key: string): Promise<any>;
-        getAll(keys: string[]): Promise<any[]>;
+        get(keys: string[]): Promise<any[]>;
+
         set(key: string, value: any, expires?: number);
-
-
-        update(key: string, field: string, value: any);
-
         execute(script: string, keys: string[], parameters: any[]): Promise<any>;
+
         clear(keyOrKeys: string | string[]);
     }
 
