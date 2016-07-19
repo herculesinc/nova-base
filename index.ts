@@ -1,3 +1,7 @@
+// IMPORTS
+// ================================================================================================
+import { since, HttpCodeNames } from './lib/util';
+
 // INTERFACES
 // ================================================================================================
 
@@ -62,7 +66,7 @@ export interface Notifier {
 }
 
 export interface Notice {
-    channel : string;
+    target  : string;
     event   : string;
     merge(notice: Notice): Notice;
 }
@@ -92,6 +96,14 @@ export interface Logger {
     trace(service: string, command: string, time: number, success?: boolean);
 }
 
+// MODULE VARIABLES
+// =================================================================================================
+export const util = {
+    since: since
+}
+
 // RE-EXPORTS
 // =================================================================================================
 export { Executor } from './lib/Executor';
+export { validate } from './lib/validator';
+export { ClientError, InternalServerError } from './lib/errors';

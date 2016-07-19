@@ -47,11 +47,11 @@ class ActionContext {
         }
     }
     registerNotice(notice) {
-        if (!notice.channel)
+        if (!notice.target)
             return;
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
-            if (this.notices[i].channel === notice.channel) {
+            if (this.notices[i].target === notice.target) {
                 let merged = notice.merge(this.notices[i]);
                 if (merged) {
                     this.notices[i] = undefined;

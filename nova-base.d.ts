@@ -107,7 +107,7 @@ declare module "nova-base" {
     }
 
     export interface Notice {
-        channel : string;
+        target  : string;
         event   : string;
         merge(notice: Notice): Notice;
     }
@@ -136,4 +136,76 @@ declare module "nova-base" {
         track(metric: string, value: number);
         trace(service: string, command: string, time: number, success?: boolean);
     }
+
+    // HTTP STATUS CODES
+    // --------------------------------------------------------------------------------------------
+    export enum HttpStatusCode {
+        OK                  = 200,
+        Created             = 201,
+        Accepted            = 202,
+        NoContent           = 204,
+        BadRequest          = 400,
+        Unauthorized        = 401,
+        InvalidInputs       = 402,
+        Forbidden           = 403,
+        NotFound            = 404,
+        NotAllowed          = 405,
+        NotAcceptable       = 406,
+        UnsupportedContent  = 415,
+        NotReady            = 425,
+        TooManyRequests     = 429,
+        InternalServerError = 500,
+        NotImplemented      = 501,
+        ServiceUnavailable  = 503
+    }
+
+    // ERRORS
+    // --------------------------------------------------------------------------------------------
+    export class ClientError extends Error {
+        name        : string;
+        status      : string;
+
+        constructor(message: string, status?: number);
+
+        getBody()   : any;
+        getHeaders(): any;
+    }
+
+    export class InternalServerError extends Error {
+        name        : string;
+        status      : number;
+        cause       : Error;
+        isCritical  : boolean;
+
+        constructor(cause: Error, isCritical?: boolean);
+        constructor(message: string, isCritical?: boolean, cause?: Error);
+
+        getBody()   : any;
+    }
+
+    // VALIDATOR
+    // --------------------------------------------------------------------------------------------
+    interface BaseValidator {
+        (condition: any, message: string): void;
+        from?: (error: Error) => void;
+    }
+
+    export interface Validator extends BaseValidator {
+        request?    : BaseValidator;
+        authorized? : BaseValidator;
+        inputs?     : BaseValidator;
+        exists?     : BaseValidator;
+        content?    : BaseValidator;
+        accepts?    : BaseValidator;
+        allowed?    : BaseValidator;
+        ready?      : BaseValidator;
+    }
+
+    export const validate: Validator;
+
+    // UTILITIES
+    // --------------------------------------------------------------------------------------------
+    export const util: {
+        since: (start: number[]) => number
+    };
 }
