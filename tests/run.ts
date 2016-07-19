@@ -32,7 +32,7 @@ const options: ExecutionOptions = {
     rateOptions: { limit: 10, window: 250 }
 }
 
-function helloWorldAdapter(this: ActionContext, inputs: any, token: string): Promise<{ name: string }> {
+function helloWorldAdapter(this: ActionContext, inputs: any, token: string): Promise<{ name: string, token: string }> {
     return Promise.resolve({
         token   : token,
         name    : `${inputs.firstName} ${inputs.lastName}`
