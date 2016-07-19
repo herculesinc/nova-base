@@ -121,7 +121,7 @@ export class Executor<V,T> {
             // execute action and release database connection
             inputs = this.adapter ? await this.adapter.call(context, inputs, authInfo) : inputs;
             const result: T = await this.action.call(this, inputs);
-            await (dao.inTransaction ? dao.release('commit') : dao.release());
+            await dao.release(dao.inTransaction ? 'commit' : undefined);
 
             // invalidate cache items
             if (context.keys.size > 0) {

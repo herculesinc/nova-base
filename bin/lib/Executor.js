@@ -64,14 +64,13 @@ class Executor {
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
                 const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings);
-
                 if (typeof requestor !== 'string') {
                     authInfo = yield this.authenticator.call(this, requestor, this.authOptions);
                 }
                 // execute action and release database connection
                 inputs = this.adapter ? yield this.adapter.call(context, inputs, authInfo) : inputs;
                 const result = yield this.action.call(this, inputs);
-                yield (dao.inTransaction ? dao.release('commit') : dao.release());
+                yield dao.release(dao.inTransaction ? 'commit' : undefined);
                 // invalidate cache items
                 if (context.keys.size > 0) {
                     this.cache.clear(Array.from(context.keys));
