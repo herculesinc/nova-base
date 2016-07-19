@@ -28,7 +28,7 @@ export const validate: Validator = function(condition: any, message?: string, is
 } 
 
 validate.from = function(error: Error) {
-    if (error) throw new InternalServerError(error, false);
+    if (error) throw new InternalServerError(error.message, error, false);
 }
 
 // REQUEST

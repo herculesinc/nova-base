@@ -19,6 +19,8 @@ class ActionContext {
         this.registerTask(taskOrNotice);
         this.registerNotice(taskOrNotice);
     }
+    clear() {
+    }
     invalidate(prefix, key) {
     }
     run(action, inputs) {
@@ -55,12 +57,25 @@ class ActionContext {
                 let merged = notice.merge(this.notices[i]);
                 if (merged) {
                     this.notices[i] = undefined;
-                    let hasHoles = true;
+                    hasHoles = true;
                     notice = merged;
                 }
             }
         }
         this.notices.push(notice);
+        if (hasHoles) {
+            this.notices = util_1.clean(this.notices);
+        }
+    }
+    clearNotices(filter) {
+        if (!filter)
+            return;
+        let hasHoles = false;
+        for (let i = 0; i < this.notices.length; i++) {
+            let notice = this.notices[i];
+            let sameEvent = (filter.event === notice.event);
+            let sameTarget = (filter.target === notice.target);
+        }
         if (hasHoles) {
             this.notices = util_1.clean(this.notices);
         }

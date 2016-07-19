@@ -1,6 +1,6 @@
 // IMPORTS
 // =================================================================================================
-import { Dao, Cache, Logger, Notice, Task } from './../index';
+import { Dao, Cache, Logger, Notice, NoticeFilter, Task } from './../index';
 import { clean } from './util';
 
 // INTERFACES
@@ -47,6 +47,10 @@ export class ActionContext {
         this.registerNotice(taskOrNotice as Notice);
     }
     
+    clear() {
+
+    }
+
     invalidate(prefix: string, key: string) {
         
     }
@@ -88,13 +92,34 @@ export class ActionContext {
                 let merged = notice.merge(this.notices[i]);
                 if (merged) {
                     this.notices[i] = undefined;
-                    let hasHoles = true;
+                    hasHoles = true;
                     notice = merged;
                 }
             }
         }
         
         this.notices.push(notice);
+        if (hasHoles) {
+            this.notices = clean(this.notices);
+        }
+    }
+
+    private clearNotices(filter: NoticeFilter) {
+        if (!filter) return;
+
+        let hasHoles = false;
+        for (let i = 0; i < this.notices.length; i++) {
+            let notice = this.notices[i];
+            let sameEvent = (filter.event === notice.event);
+            let sameTarget = (filter.target === notice.target);
+            
+            // TODO: complete
+            //if (sameEvent || sameTarget && (filter.event )) {
+            //    this.notices[i] = undefined;
+            //    hasHoles = true;
+            //}
+        }
+
         if (hasHoles) {
             this.notices = clean(this.notices);
         }

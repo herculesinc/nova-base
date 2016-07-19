@@ -71,6 +71,11 @@ export interface Notice {
     merge(notice: Notice): Notice;
 }
 
+export interface NoticeFilter {
+    target? : string;
+    event?  : string;
+}
+
 // RATE LIMITER
 // ------------------------------------------------------------------------------------------------
 export interface RateLimiter {
@@ -80,13 +85,18 @@ export interface RateLimiter {
 export interface RateOptions {
     window  : number;
     limit   : number;
+    scope?  : RateScope;
+}
+
+export const enum RateScope {
+    Local = 1, Global = 2
 }
 
 // LOGGER
 // ------------------------------------------------------------------------------------------------
 export interface Logger {        
     debug(message: string);
-    info (message: string);
+    info(message: string);
     warn(message: string);
 
     error(error: Error);

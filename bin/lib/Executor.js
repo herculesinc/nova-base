@@ -8,6 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 const Action_1 = require('./Action');
+const errors_1 = require('./errors');
 const util_1 = require('./util');
 // CLASS DEFINITION
 // ================================================================================================
@@ -15,7 +16,11 @@ class Executor {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     constructor(context, action, adapter, options) {
-        // TODO: validate parameters
+        // validate inputs
+        validateContext(context, options);
+        validateAction(action);
+        if (adapter)
+            validateAdapter(adapter);
         this.authenticator = context.authenticator;
         this.database = context.database;
         this.cache = context.cache;
@@ -26,9 +31,14 @@ class Executor {
         this.settings = context.settings;
         this.action = action;
         this.adapter = adapter;
-        this.daoOptions = options.daoOptions;
-        this.rateOptions = options.rateOptions;
-        this.authOptions = options.authOptions;
+        if (options) {
+            this.daoOptions = options.daoOptions;
+            this.rateOptions = options.rateOptions;
+            this.authOptions = options.authOptions;
+            this.errorLogging = options.errorLogging;
+        }
+        else {
+        }
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
@@ -39,9 +49,15 @@ class Executor {
             try {
                 this.logger && this.logger.debug(`Executing ${this.action.name} action`);
                 // enforce rate limit
-                if (this.rateOptions) {
-                    const key = ''; // TODO: build key - add global vs. local options
-                    yield this.limiter.try(key, this.rateOptions);
+                if (this.rateOptions && requestor) {
+                    const scope = this.rateOptions.scope || 2 /* Global */;
+                    const key = (typeof requestor !== 'string')
+                        ? `${requestor.scheme}::${requestor.credentials}` : requestor;
+                    const localTry = (scope & 1 /* Local */)
+                        ? this.limiter.try(`${key}::${this.action.name}`, this.rateOptions) : undefined;
+                    const globalTry = (scope & 2 /* Global */)
+                        ? this.limiter.try(key, this.rateOptions) : undefined;
+                    yield Promise.all([localTry, globalTry]);
                 }
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
@@ -63,14 +79,96 @@ class Executor {
                 return result;
             }
             catch (error) {
+                // if DAO connection is open, close it
                 if (dao && dao.isActive) {
                     yield dao.release(dao.inTransaction ? 'rollback' : undefined);
                 }
-                // TODO: log error -- add option, all or server only
+                // log the error, if needed
+                if (error instanceof errors_1.ClientError) {
+                    if (this.logger && (this.errorLogging | 1 /* client */))
+                        this.logger.error(error);
+                }
+                else if (error instanceof errors_1.ServerError) {
+                    if (this.logger && (this.errorLogging & 2 /* server */))
+                        this.logger.error(error);
+                }
+                else {
+                    // if unknow error is encountred, assume the error is critical
+                    error = new errors_1.InternalServerError(`Failed to execute ${this.action.name}`, error, true);
+                    if (this.logger && (this.errorLogging & 2 /* server */))
+                        this.logger.error(error);
+                }
                 return Promise.reject(error);
             }
         });
     }
 }
 exports.Executor = Executor;
+// HELPER FUNCTIONS
+// ================================================================================================
+function validateContext(context, options) {
+    if (!context)
+        throw new Error('Cannot create an Executor: context is undefined');
+    // authenticator
+    if (!context.authenticator)
+        throw new Error('Cannot create an Executor: Authentiator is undefined');
+    if (typeof context.authenticator !== 'function')
+        throw new Error('Cannot create an Executor: Authenticator is invalid');
+    // database
+    if (!context.database)
+        throw new Error('Cannot create an Executor: Database is undefined');
+    if (typeof context.database.connect !== 'function')
+        throw new Error('Cannot create an Executor: Database is invalid');
+    // cache
+    if (!context.cache)
+        throw new Error('Cannot create an Executor: Cannot create an Executor: Cache is undefined');
+    // TODO: check for cache functions
+    // dispatcher
+    if (!context.dispatcher)
+        throw new Error('Cannot create an Executor: Dispatcher is undefined');
+    if (typeof context.dispatcher.dispatch !== 'function')
+        throw new Error('Cannot create an Executor: Dispatcher is invalid');
+    // notifier
+    if (!context.notifier)
+        throw new Error('Cannot create an Executor: Notifier is undefined');
+    if (typeof context.notifier.send !== 'function')
+        throw new Error('Cannot create an Executor: Notifier is invalid');
+    // rate limiter
+    if (context.limiter) {
+        if (typeof context.limiter.try !== 'function')
+            throw new Error('Cannot create an Executor: Rate Limiter is invalid');
+    }
+    else {
+        if (options && options.rateOptions)
+            throw new Error('Cannot create an Executor: Rate Limiter was not provided');
+    }
+    if (context.logger) {
+        if (typeof context.logger.debug !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.info !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.warn !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.error !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.log !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.track !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+        if (typeof context.logger.trace !== 'function')
+            throw new Error('Cannot create an Executor: Logger is invalid');
+    }
+}
+function validateAction(value) {
+    if (!value)
+        throw new Error('Cannot create an Executor: Action is undefined');
+    if (typeof value !== 'function')
+        throw new Error('Cannot create an Executor: Action is not a function');
+}
+exports.validateAction = validateAction;
+function validateAdapter(value) {
+    if (typeof value !== 'function')
+        throw new Error('Cannot create an Executor: Adapter is not a function');
+}
+exports.validateAdapter = validateAdapter;
 //# sourceMappingURL=Executor.js.map

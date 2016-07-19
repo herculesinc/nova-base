@@ -13,7 +13,6 @@ declare module "nova-base" {
     export interface ActionContext {
         dao     : Dao;
         cache   : Cache;
-        logger  : Logger;
         settings: any;
 
         register(task: Task);
@@ -42,7 +41,7 @@ declare module "nova-base" {
     }
 
     export class Executor<V,T> {
-        constructor(context: ExecutorContext, action: Action<V,T>, adapter: ActionAdapter<V>, options: ExecutionOptions);
+        constructor(context: ExecutorContext, action: Action<V,T>, adapter?: ActionAdapter<V>, options?: ExecutionOptions);
         execute(inputs: any, requetor?: AuthInputs | string): Promise<T>;
     }
 
@@ -121,13 +120,18 @@ declare module "nova-base" {
     export interface RateOptions {
         window  : number;
         limit   : number;
+        scope?  : RateScope;
+    }
+
+    export const enum RateScope {
+        Local = 1, Global = 2
     }
 
     // LOGGER
     // --------------------------------------------------------------------------------------------
     export interface Logger {        
         debug(message: string);
-        info (message: string);
+        info(message: string);
         warn(message: string);
 
         error(error: Error);
@@ -139,7 +143,7 @@ declare module "nova-base" {
 
     // HTTP STATUS CODES
     // --------------------------------------------------------------------------------------------
-    export enum HttpStatusCode {
+    export const enum HttpStatusCode {
         OK                  = 200,
         Created             = 201,
         Accepted            = 202,
@@ -171,16 +175,21 @@ declare module "nova-base" {
         getHeaders(): any;
     }
 
-    export class InternalServerError extends Error {
+    export class ServerError extends Error {
         name        : string;
         status      : number;
+
+        constructor(message: string, status?: number);
+
+        getBody()   : any;
+    }
+
+    export class InternalServerError extends ServerError {
         cause       : Error;
         isCritical  : boolean;
 
-        constructor(cause: Error, isCritical?: boolean);
-        constructor(message: string, isCritical?: boolean, cause?: Error);
-
-        getBody()   : any;
+        constructor(message: string, isCritical?: boolean);
+        constructor(message: string, cause: Error, isCritical?: boolean);
     }
 
     // VALIDATOR

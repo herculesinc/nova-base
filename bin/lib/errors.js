@@ -25,20 +25,34 @@ class ClientError extends Error {
 exports.ClientError = ClientError;
 // SERVER ERROR
 // ================================================================================================
-class InternalServerError extends Error {
-    constructor(messageOrCause, isCritical, cause) {
-        if (typeof messageOrCause === 'string') {
-            super(cause ? `${messageOrCause}: ${cause.message}` : messageOrCause);
-            this.cause = cause;
+class ServerError extends Error {
+    constructor(message, status) {
+        super(message);
+        this.status = status || util_1.HttpStatusCode.InternalServerError;
+        this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
+        Error.captureStackTrace(this, this.constructor);
+    }
+    getBody() {
+        return {
+            name: this.name,
+            message: this.message
+        };
+    }
+}
+exports.ServerError = ServerError;
+class InternalServerError extends ServerError {
+    constructor(message, causeOrCritical, isCritical) {
+        super(message);
+        if (!causeOrCritical) {
+            this.isCritical = false;
+        }
+        else if (typeof causeOrCritical === 'boolean') {
+            this.isCritical = causeOrCritical;
         }
         else {
-            super(messageOrCause.message);
-            this.cause = messageOrCause;
+            this.cause = causeOrCritical;
+            this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
         }
-        this.status = util_1.HttpStatusCode.InternalServerError;
-        this.name = util_1.HttpCodeNames.get(this.status);
-        this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
-        Error.captureStackTrace(this, this.constructor);
     }
     getBody() {
         // TODO: improve content generation

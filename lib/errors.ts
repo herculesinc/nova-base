@@ -30,28 +30,44 @@ export class ClientError extends Error {
 
 // SERVER ERROR
 // ================================================================================================
-export class InternalServerError extends Error {
-	name        : string;
-	status      : number;
+export class ServerError extends Error {
+	name    : string;
+	status  : number;
+
+	constructor(message: string, status?: number) {
+        super(message);
+        this.status = status || HttpStatusCode.InternalServerError;
+		this.name = HttpCodeNames.get(this.status) || 'Unknown Error';
+        Error.captureStackTrace(this, this.constructor);
+	}
+
+    getBody(): any {
+        return {
+            name    : this.name,
+            message : this.message
+        };
+    }
+}
+
+export class InternalServerError extends ServerError {
     cause       : Error;
     isCritical  : boolean;
     
-    constructor(cause: Error, isCritical?: boolean);
-    constructor(message: string, isCritical?: boolean, cause?: Error);
-	constructor(messageOrCause: string | Error, isCritical?: boolean, cause?: Error) {
-        if (typeof messageOrCause === 'string') {
-			super(cause ? `${messageOrCause}: ${cause.message}` : messageOrCause);
-			this.cause = cause;
+    constructor(message: string, isCritical?: boolean);
+    constructor(message: string, cause?: Error, isCritical?: boolean);
+	constructor(message: string, causeOrCritical?: Error | boolean, isCritical?: boolean) {
+        super(message);
+
+        if (!causeOrCritical) {
+            this.isCritical = false;
+        }
+        else if (typeof causeOrCritical === 'boolean') {
+			this.isCritical = causeOrCritical;
 		}
 		else {
-			super(messageOrCause.message);
-			this.cause = messageOrCause;
+			this.cause = causeOrCritical;
+            this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
 		}
-
-        this.status = HttpStatusCode.InternalServerError;
-		this.name = HttpCodeNames.get(this.status);
-        this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
-        Error.captureStackTrace(this, this.constructor);
 	}
 
     getBody(): any {

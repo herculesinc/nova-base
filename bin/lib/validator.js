@@ -11,7 +11,7 @@ exports.validate = function (condition, message, isCritical) {
 };
 exports.validate.from = function (error) {
     if (error)
-        throw new Errors_1.InternalServerError(error, false);
+        throw new Errors_1.InternalServerError(error.message, error, false);
 };
 // REQUEST
 // ------------------------------------------------------------------------------------------------
