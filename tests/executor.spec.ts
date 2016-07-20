@@ -6,7 +6,6 @@ import { Authenticator, Dao, Database, Cache, Dispatcher,
          Notifier, RateLimiter, Task, Notice, Logger, AuthInputs } from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
-import { ServerError, ClientError } from './../lib/errors';
 import { MockDao } from './mocks/Database';
 
 const options: ExecutionOptions = {
@@ -482,8 +481,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                     } );
                 } );
 
-                it( 'should return ServerError', () => {
-                    expect( errorObj ).to.be.instanceof( ServerError );
+                it( 'should return Error', () => {
+                    expect( errorObj ).to.be.instanceof( Error );
                 } );
 
                 it( 'authenticator should be called once', () => {
@@ -511,8 +510,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                     } );
                 } );
 
-                it( 'should return ClientError', () => {
-                    expect( errorObj ).to.be.instanceof( ClientError );
+                it( 'should return Error', () => {
+                    expect( errorObj ).to.be.instanceof( Error );
                 } );
 
                 it( 'authenticator should be called once', () => {
@@ -542,8 +541,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                     } );
                 } );
 
-                it( 'should return ServerError', () => {
-                    expect( errorObj ).to.be.instanceof( ServerError );
+                it( 'should return Error', () => {
+                    expect( errorObj ).to.be.instanceof( Error );
                 } );
 
                 it( 'limiter.try should be called once', () => {
@@ -575,8 +574,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                     } );
                 } );
 
-                it( 'should return ClientError', () => {
-                    expect( errorObj ).to.be.instanceof( ClientError );
+                it( 'should return Error', () => {
+                    expect( errorObj ).to.be.instanceof( Error );
                 } );
 
                 it( 'limiter.try should be called once', () => {
@@ -610,8 +609,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                     } );
                 } );
 
-                it( 'should return ServerError', () => {
-                    expect( errorObj ).to.be.instanceof( ServerError );
+                it( 'should return Error', () => {
+                    expect( errorObj ).to.be.instanceof( Error );
                 } );
 
                 it( 'this.cache should be called once', () => {
