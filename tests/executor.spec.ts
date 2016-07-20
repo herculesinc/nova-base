@@ -1,531 +1,631 @@
 ///<reference path="../typings/index.d.ts"/>
-import * as chai from 'chai';
+import { expect } from 'chai';
 import * as sinon from 'sinon';
 
-import { AuthInputs } from './../index';
+import { Authenticator, Dao, Database, Cache, Dispatcher,
+         Notifier, RateLimiter, Task, Notice, Logger, AuthInputs } from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
-import { ServerError } from './../lib/errors';
-
-import { authenticate } from './mocks/Authenticator';
-import { MockCache } from './mocks/Cache';
-import { MockDatabase, MockDao } from './mocks/Database';
-import { MockDispatcher } from './mocks/Dispatcher';
-import { MockNotifier } from './mocks/Notifier';
-import { MockRateLimiter } from './mocks/RateLimiter';
-import { MockLogger } from './mocks/Logger';
-
-const expect = chai.expect;
+import { ServerError, ClientError } from './../lib/errors';
+import { MockDao } from './mocks/Database';
 
 const options: ExecutionOptions = {
+    authOptions: { foo: 'bar' },
     daoOptions : { startTransaction: true },
     rateOptions: { limit: 10, window: 250 }
 };
 
+const settings  = { count: 5 };
 const requestor = { scheme: 'token', credentials: 'testtoken1' };
 const inputs    = { firstName: 'John', lastName: 'Smith' };
 
-let context: ExecutorContext;
+let tmpOptions;
 
-describe( 'Nova-base tests', () => {
+describe( 'NOVA-BASE -> Executor tests;', () => {
 
     beforeEach( done => {
-        context = {
-            authenticator: authenticate,
-            database     : new MockDatabase(),
-            cache        : new MockCache(),
-            dispatcher   : new MockDispatcher(),
-            notifier     : new MockNotifier(),
-            limiter      : new MockRateLimiter(),
-            logger       : new MockLogger(),
+        const self = this;
+
+        this.authenticatorResult = 'authenticator_result';
+        this.adapterResult       = 'adapter_result';
+        this.actionResult        = 'action_result';
+
+        this.authenticator = <Authenticator> sinon.stub();
+
+        this.dao = <Dao> new MockDao( options.daoOptions );
+
+        sinon.spy( this.dao, 'release' );
+
+        this.database = <Database> {
+            connect: sinon.stub().returns( Promise.resolve( this.dao ) )
+        };
+
+        this.cache = <Cache> {
+            get    : sinon.stub().returns( Promise.resolve() ),
+            set    : sinon.stub(),
+            execute: sinon.stub().returns( Promise.resolve() ),
+            clear  : sinon.stub()
+        }
+
+        this.dispatcher = <Dispatcher> { dispatch: sinon.stub() };
+        this.notifier   = <Notifier> { send: sinon.stub() };
+        this.limiter    = <RateLimiter> { try: sinon.stub() };
+
+        this.logger = <Logger> {
+            debug: sinon.spy(),
+            log  : sinon.spy(),
+            info : sinon.spy(),
+            warn : sinon.spy(),
+            error: sinon.spy(),
+            track: sinon.spy(),
+            trace: sinon.spy()
+        };
+
+        this.context = <ExecutorContext> {
+            authenticator: this.authenticator,
+            database     : this.database,
+            cache        : this.cache,
+            dispatcher   : this.dispatcher,
+            notifier     : this.notifier,
+            limiter      : this.limiter,
+            logger       : this.logger,
             settings     : { count: 5 }
         };
+
+        this.task = <Task> {
+            queue: 'task',
+            merge: sinon.stub().returns( this.task )
+        };
+
+        this.notice = <Notice> {
+            target: 'target',
+            event : 'event',
+            merge : sinon.stub().returns( this.notice )
+        };
+
+        this.adapter = sinon.stub();
+
+        this.action = function action(this: ActionContext, inputs: string): Promise<any> {
+            // adding task and notice
+            this.register( self.task );
+            this.register( self.notice );
+
+            // adding cache keys
+            this.invalidate( 'key1' );
+            this.invalidate( 'key2' );
+
+            return Promise.resolve( self.actionResult );
+        };
+
+        this.action = sinon.spy( this, 'action' );
 
         done();
     } );
 
-    describe( 'Executor Logger', () => {
-        it( 'logger.debug and logger.log should be called', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+    describe( 'authenticator, adapter and action should be called in ActionContext;', () => {
+        it( 'authenticator should be called in ActionContext', done => {
+            this.context.authenticator = function authenticate(inputs: AuthInputs, options: any): Promise<any> {
+                try {
+                    expect( this ).to.be.instanceof( ActionContext );
+                    done();
+                } catch ( error ) {
+                    done( error );
+                }
+                return Promise.resolve();
+            };
 
-            let debugSpy = sinon.spy( executor.logger, 'debug' );
-            let logSpy   = sinon.spy( executor.logger, 'log' );
-            let infoSpy  = sinon.spy( executor.logger, 'info' );
-            let warnSpy  = sinon.spy( executor.logger, 'warn' );
-            let errorSpy = sinon.spy( executor.logger, 'error' );
+            this.executor = new Executor( this.context, this.action, this.adapter, options );
 
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( debugSpy.called ).to.be.true;
-                        expect( logSpy.called ).to.be.true;
-                        expect( infoSpy.called ).to.be.false;
-                        expect( warnSpy.called ).to.be.false;
-                        expect( errorSpy.called ).to.be.false;
-
-                        expect( debugSpy.callCount ).to.equal( 2 );
-                        expect( logSpy.callCount ).to.equal( 1 );
-
-                        expect( debugSpy.firstCall.args.length ).to.equal( 1 );
-                        expect( debugSpy.firstCall.args[ 0 ] ).to.equal( 'Executing helloWorldAction action' );
-
-                        expect( debugSpy.secondCall.args.length ).to.equal( 1 );
-                        expect( debugSpy.secondCall.args[ 0 ] ).to.equal( 'Authenticated user1 via token' );
-
-                        expect( logSpy.calledAfter( debugSpy ) ).to.be.true;
-                        expect( logSpy.firstCall.args.length ).to.equal( 2 );
-                        expect( logSpy.firstCall.args[ 0 ] ).to.equal( 'Executed helloWorldAction' );
-                        expect( Object.keys( logSpy.firstCall.args[ 1 ] ) ).to.deep.equal( [ 'time' ] );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
+            this.executor.execute( inputs, requestor ).catch( done );
         } );
 
-        it( 'no one logger method should be called', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+        it( 'adapter should be called in ActionContext', done => {
+            this.adapter = function adapter(inputs: any, token: any): Promise<any> {
+                try {
+                    expect( this ).to.be.instanceof( ActionContext );
+                    done();
+                } catch ( error ) {
+                    done( error );
+                }
+                return Promise.resolve();
+            };
 
-            let debugSpy = sinon.spy( executor.logger, 'debug' );
-            let logSpy   = sinon.spy( executor.logger, 'log' );
-            let infoSpy  = sinon.spy( executor.logger, 'info' );
-            let warnSpy  = sinon.spy( executor.logger, 'warn' );
-            let errorSpy = sinon.spy( executor.logger, 'error' );
+            this.executor = new Executor( this.context, this.action, this.adapter, options );
 
-            delete executor.logger;
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( debugSpy.called ).to.be.false;
-                        expect( logSpy.called ).to.be.false;
-                        expect( infoSpy.called ).to.be.false;
-                        expect( warnSpy.called ).to.be.false;
-                        expect( errorSpy.called ).to.be.false;
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
+            this.executor.execute( inputs, requestor ).catch( done );
         } );
 
-        it( 'logger.error should be called', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldRejectedAdapter, options );
+        it( 'action should be called in ActionContext', done => {
+            this.action = function action(inputs: string): Promise<any> {
+                try {
+                    expect( this ).to.be.instanceof( ActionContext );
+                    done();
+                } catch ( error ) {
+                    done( error );
+                }
+                return Promise.resolve();
+            };
 
-            let errorSpy = sinon.spy( executor.logger, 'error' );
+            this.executor = new Executor( this.context, this.action, this.adapter, options );
 
-            executor.execute(  inputs, requestor )
-                .then( result => {
-                    done( 'should return error' );
-                } )
-                .catch( () => {
-                    try {
-                        expect( errorSpy.called ).to.be.true;
-                        expect( errorSpy.callCount ).to.equal( 1 );
+            this.executor.execute( inputs, requestor ).catch( done );
+        } );
+    } );
 
-                        expect( errorSpy.firstCall.args.length ).to.equal( 1 );
-                        expect( errorSpy.firstCall.args[ 0 ] ).to.be.instanceof( ServerError );
+    describe( 'executor.execute should call functions with right arguments and in right order;', () => {
 
+        beforeEach ( done => {
+            this.limiter.try.returns( Promise.resolve( this.authenticatorResult ) );
+            this.authenticator.returns( Promise.resolve( this.authenticatorResult ) );
+            this.adapter.returns( Promise.resolve( this.adapterResult ) );
+            this.dispatcher.dispatch.returns( Promise.resolve() );
+            this.notifier.send.returns( Promise.resolve() );
+
+            this.executor = new Executor( this.context, this.action, this.adapter, options );
+
+            this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
+        } );
+
+        describe( 'logger', () => {
+            it( 'logger.debug should be called once', () => {
+                expect( this.logger.debug.calledOnce ).to.be.true;
+            } );
+
+            it( 'logger.debug should be called with (\'Executing [actionName] action\') arguments', () => {
+                expect( this.logger.debug.firstCall.calledWithExactly( 'Executing proxy action' ) ).to.be.true;
+            } );
+
+            it( 'logger.error should not be called', () => {
+                expect( this.logger.error.called ).to.be.false;
+            } );
+        } );
+
+        describe( 'limiter.try', () => {
+            it( 'limiter.try should be called once', () => {
+                expect( this.limiter.try.calledOnce ).to.be.true;
+            } );
+
+            it( 'limiter.try should be called with daoOptions arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, options.rateOptions ) ).to.be.true;
+            } );
+
+            it( 'limiter.try should return Promise<Dao>', () => {
+                expect( this.limiter.try.firstCall.returnValue ).to.be.instanceof( Promise );
+            } );
+        } );
+
+        describe( 'database.connect', () => {
+            it( 'database.connect should be called once', () => {
+                expect( this.database.connect.calledOnce ).to.be.true;
+            } );
+
+            it( 'database.connect should be called after limiter.try', () => {
+                expect( this.database.connect.calledAfter( this.limiter.try ) ).to.be.true;
+            } );
+
+            it( 'database.connect should be called with daoOptions arguments', () => {
+                expect( this.database.connect.calledWithExactly( options.daoOptions ) ).to.be.true;
+            } );
+
+            it( 'database.connect should return Promise<Dao>', done => {
+                expect( this.database.connect.firstCall.returnValue ).to.be.instanceof( Promise );
+
+                this.database.connect.firstCall.returnValue
+                    .then( result => {
+                        expect( result ).to.be.instanceof( MockDao );
                         done();
-                    } catch ( error ) {
-                        done( error );
-                    }
+                    } )
+                    .catch( done );
+            } );
+        } );
+
+        describe( 'authenticator', () => {
+            it( 'authenticator should be called once', () => {
+                expect( this.authenticator.calledOnce ).to.be.true;
+            } );
+
+            it( 'authenticator should be called after database.connect', () => {
+                expect( this.authenticator.calledAfter( this.database.connect ) ).to.be.true;
+            } );
+
+            it( 'authenticator should be called with daoOptions arguments', () => {
+                expect( this.authenticator.calledWithExactly( requestor, options.authOptions ) ).to.be.true;
+            } );
+
+            it( 'authenticator should return Promise<this.authenticatorResult>', done => {
+                expect( this.authenticator.firstCall.returnValue ).to.be.instanceof( Promise );
+
+                this.authenticator.firstCall.returnValue
+                    .then( result => {
+                        expect( result ).to.be.equal( this.authenticatorResult );
+                        done();
+                    } )
+                    .catch( done );
+            } );
+        } );
+
+        describe( 'adapter', () => {
+            it( 'adapter should be called once', () => {
+                expect( this.adapter.calledOnce ).to.be.true;
+            } );
+
+            it( 'adapter should be called after authenticator', () => {
+                expect( this.adapter.calledAfter( this.authenticator ) ).to.be.true;
+            } );
+
+            it( 'adapter should be called with (inputs, this.authenticatorResult) arguments', () => {
+                expect( this.adapter.calledWithExactly( inputs, this.authenticatorResult ) ).to.be.true;
+            } );
+
+            it( 'adapter should return Promise<this.adapterResult>', done => {
+                expect( this.adapter.firstCall.returnValue ).to.be.instanceof( Promise );
+
+                this.adapter.firstCall.returnValue
+                    .then( result => {
+                        expect( result ).to.be.equal( this.adapterResult );
+                        done();
+                    } )
+                    .catch( done );
+            } );
+        } );
+
+        describe( 'action', () => {
+            it( 'action should be called once', () => {
+                expect( this.action.calledOnce ).to.be.true;
+            } );
+
+            it( 'action should be called after adapter', () => {
+                expect( this.action.calledAfter( this.adapter ) ).to.be.true;
+            } );
+
+            it( 'action should be called with (this.adapterResult) arguments', () => {
+                expect( this.action.calledWithExactly( this.adapterResult ) ).to.be.true;
+            } );
+
+            it( 'adapter should return Promise<this.actionResult>', done => {
+                expect( this.action.firstCall.returnValue ).to.be.instanceof( Promise );
+
+                this.action.firstCall.returnValue
+                    .then( result => {
+                        expect( result ).to.be.equal( this.actionResult );
+                        done();
+                    } )
+                    .catch( done );
+            } );
+        } );
+
+        describe( 'dao.release', () => {
+            it( 'dao.release should be called once', () => {
+                expect( this.dao.release.calledOnce ).to.be.true;
+            } );
+
+            it( 'dao.release should be called after action', () => {
+                expect( this.dao.release.calledAfter( this.action ) ).to.be.true;
+            } );
+
+            it( 'dao.release should be called with (\'commit\') arguments', () => {
+                expect( this.dao.release.calledWithExactly( 'commit' ) ).to.be.true;
+            } );
+
+            it( 'dao.release should return Promise<any>', () => {
+                expect( this.dao.release.firstCall.returnValue ).to.be.instanceof( Promise );
+            } );
+        } );
+
+        describe( 'cache.clear', () => {
+            it( 'cache.clear should be called once', () => {
+                expect( this.cache.clear.calledOnce ).to.be.true;
+            } );
+
+            it( 'cache.clear should be called after dao.release', () => {
+                expect( this.cache.clear.calledAfter( this.dao.release ) ).to.be.true;
+            } );
+
+            it( 'cache.clear should be called with ([\'key1\', \'key2\']) arguments', () => {
+                expect( this.cache.clear.calledWithExactly( [ 'key1', 'key2' ] ) ).to.be.true;
+            } );
+        } );
+
+        describe( 'dispatcher.dispatch', () => {
+            it( 'dispatcher.dispatch should be called once', () => {
+                expect( this.dispatcher.dispatch.calledOnce ).to.be.true;
+            } );
+
+            it( 'dispatcher.dispatch should be called with (this.task) arguments', () => {
+                expect( this.dispatcher.dispatch.calledWithExactly( [ this.task ] ) ).to.be.true;
+            } );
+
+            it( 'dispatcher.dispatch should return Promise<any>', () => {
+                expect( this.dispatcher.dispatch.firstCall.returnValue ).to.be.instanceof( Promise );
+            } );
+        } );
+
+        describe( 'notifier.send', () => {
+            it( 'notifier.send should be called once', () => {
+                expect( this.notifier.send.calledOnce ).to.be.true;
+            } );
+
+            it( 'notifier.send should be called with (this.notice) arguments', () => {
+                expect( this.notifier.send.calledWithExactly( [ this.notice ] ) ).to.be.true;
+            } );
+
+            it( 'notifier.send should return Promise<any>', () => {
+                expect( this.notifier.send.firstCall.returnValue ).to.be.instanceof( Promise );
+            } );
+        } );
+
+        describe( 'logger.log', () => {
+            it( 'logger.log should be called once', () => {
+                expect( this.logger.log.calledOnce ).to.be.true;
+            } );
+
+            it( 'logger.log should be called after notifier.send', () => {
+                expect( this.logger.log.calledAfter( this.notifier.send ) ).to.be.true;
+            } );
+
+            it( 'logger.log should be called with (\'Executed [actionName]\', { time: number }) arguments', () => {
+                let args = this.logger.log.firstCall.args;
+
+                expect( args.length ).to.equal( 2 );
+                expect( args[ 0 ] ).to.match( /^Executed .+$/ );
+                expect( Object.keys( args[ 1 ] ) ).to.deep.equal( [ 'time' ] );
+            } );
+        } );
+    } );
+
+    describe( 'executor.execute should call limiter.try with different arguments;', () => {
+        describe( 'when requestor is a string', () => {
+            beforeEach ( done => {
+                this.executor = new Executor( this.context, this.action, this.adapter, options );
+
+                this.executor.execute( inputs, 'requestor' ).then( () => done() ).catch( done );
+            } );
+
+            it( 'limiter.try should be called once', () => {
+                expect( this.limiter.try.calledOnce ).to.be.true;
+            } );
+
+            it( 'limiter.try should be called with daoOptions arguments', () => {
+                expect( this.limiter.try.calledWithExactly( 'requestor', options.rateOptions ) ).to.be.true;
+            } );
+        } );
+
+        describe( 'when using local scope', () => {
+            beforeEach ( done => {
+                tmpOptions = Object.assign( {}, options, { rateOptions : { limit: 10, window: 250, scope: 1 } } );
+
+                this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+
+                this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
+            } );
+
+            it( 'limiter.try should be called once', () => {
+                expect( this.limiter.try.calledOnce ).to.be.true;
+            } );
+
+            it( 'limiter.try should be called with daoOptions arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, tmpOptions.rateOptions ) ).to.be.true;
+            } );
+        } );
+
+        describe( 'when using global scope', () => {
+            beforeEach ( done => {
+                tmpOptions = Object.assign( {}, options, { rateOptions : { limit: 10, window: 250, scope: 2 } } );
+
+                this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+
+                this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
+            } );
+
+            it( 'limiter.try should be called once', () => {
+                expect( this.limiter.try.calledOnce ).to.be.true;
+            } );
+
+            it( 'limiter.try should be called with daoOptions arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, tmpOptions.rateOptions ) ).to.be.true;
+            } );
+        } );
+    } );
+
+    describe( 'executor.execute should call dao.release without transaction;', () => {
+        beforeEach ( done => {
+            tmpOptions = Object.assign( {}, options, { daoOptions : { startTransaction: false } } );
+
+            this.dao      = <Dao> new MockDao( tmpOptions.daoOptions );
+            this.database = <Database> { connect: sinon.stub().returns( Promise.resolve( this.dao ) ) };
+
+            sinon.spy( this.dao, 'release' );
+
+            this.context.database = this.database;
+
+            this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+
+            this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
+        } );
+
+        it( 'database.connect should be called with daoOptions arguments', () => {
+            expect( this.database.connect.calledWithExactly( tmpOptions.daoOptions ) ).to.be.true;
+        } );
+
+        it( 'dao.release should be called with empty arguments', () => {
+            expect( this.dao.release.calledWithExactly( undefined ) ).to.be.true;
+        } );
+    } );
+
+    describe( 'executor.execute should not call cache.clear if cache keys was not provided;', () => {
+        beforeEach ( done => {
+            this.action = sinon.stub().returns( Promise.resolve() );
+
+            this.executor = new Executor( this.context, this.action, this.adapter, options );
+
+            this.executor.execute( inputs, 'requestor' ).then( () => done() ).catch( done );
+        } );
+
+        it( 'cache.clear should not be called', () => {
+            expect( this.cache.clear.called ).to.be.false;
+        } );
+    } );
+
+    describe( 'executor.execute should return error;', () => {
+        let errorObj;
+
+        describe( 'authenticator', () => {
+            describe( 'if authenticator return error', () => {
+                beforeEach ( done => {
+                    this.authenticator.throws();
+
+                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+
+                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                        errorObj = error;
+                        done();
+                    } );
                 } );
-        } );
-    } );
 
-    describe( 'Executor Database', () => {
-        it( 'database.connect should be called once', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let dbSpy = sinon.spy( executor.database, 'connect' );
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( dbSpy.called ).to.be.true;
-                        expect( dbSpy.calledOnce ).to.be.true;
-
-                        expect( dbSpy.calledWith( options.daoOptions ) ).to.be.true;
-                        expect( dbSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'db dao.release should be called once with (\'commit\') arg', done => {
-            let mockDao  = new MockDao( { startTransaction: true } );
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let dbStub = sinon.stub( executor.database, 'connect' );
-            let daoSpy = sinon.spy( mockDao, 'release' );
-
-            dbStub.returns( Promise.resolve( mockDao ) );
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( daoSpy.called ).to.be.true;
-                        expect( daoSpy.calledOnce ).to.be.true;
-
-                        expect( daoSpy.calledWith( 'commit' ) ).to.be.true;
-                        expect( daoSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'db dao.release should be called once with empty arg', done => {
-            let mockDao  = new MockDao( { startTransaction: false } );
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let dbStub = sinon.stub( executor.database, 'connect' );
-            let daoSpy = sinon.spy( mockDao, 'release' );
-
-            dbStub.returns( Promise.resolve( mockDao ) );
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( daoSpy.called ).to.be.true;
-                        expect( daoSpy.calledOnce ).to.be.true;
-
-                        expect( daoSpy.calledWith() ).to.be.true;
-                        expect( daoSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'db dao.release should be called once (\'rollback\') arg', done => {
-            let mockDao  = new MockDao( { startTransaction: true } );
-            let executor = new Executor( context, helloWorldAction, helloWorldRejectedAdapter, options );
-
-            let dbStub = sinon.stub( executor.database, 'connect' );
-            let daoSpy = sinon.spy( mockDao, 'release' );
-
-            dbStub.returns( Promise.resolve( mockDao ) );
-
-            executor.execute(  inputs, requestor )
-                .then( result => {
-                    done( 'should return error' );
-                } )
-                .catch( () => {
-                    try {
-                        expect( daoSpy.called ).to.be.true;
-                        expect( daoSpy.calledOnce ).to.be.true;
-
-                        expect( daoSpy.calledWith( 'rollback' ) ).to.be.true;
-                        expect( daoSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
+                it( 'should return ServerError', () => {
+                    expect( errorObj ).to.be.instanceof( ServerError );
                 } );
-        } );
-    } );
 
-    describe( 'Executor Authenticator', () => {
-        it( 'authenticator should be called once', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+                it( 'authenticator should be called once', () => {
+                    expect( this.authenticator.calledOnce ).to.be.true;
+                } );
 
-            let authSpy = sinon.spy( executor, 'authenticator' );
+                it( 'dao.release should be called with (\'rollback\') arguments', () => {
+                    expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
+                } );
 
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( authSpy.called ).to.be.true;
-                        expect( authSpy.calledOnce ).to.be.true;
+                it( 'logger.error should be called once', () => {
+                    expect( this.logger.error.calledOnce ).to.be.true;
+                } );
+            } );
 
-                        expect( authSpy.calledWith( requestor ) ).to.be.true;
-                        expect( authSpy.firstCall.returnValue ).to.be.instanceof( Promise );
+            describe( 'if authenticator was rejected', () => {
+                beforeEach ( done => {
+                    this.authenticator.returns( new Promise( ( resolve, reject ) => reject( 'Anauthenticated' ) ) );
 
+                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+
+                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                        errorObj = error;
                         done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
+                    } );
+                } );
+
+                it( 'should return ClientError', () => {
+                    expect( errorObj ).to.be.instanceof( ClientError );
+                } );
+
+                it( 'authenticator should be called once', () => {
+                    expect( this.authenticator.calledOnce ).to.be.true;
+                } );
+
+                it( 'dao.release should be called with (\'rollback\') arguments', () => {
+                    expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
+                } );
+
+                it( 'logger.error should be called once', () => {
+                    expect( this.logger.error.calledOnce ).to.be.true;
+                } );
+            } );
         } );
 
-        it( 'authenticator should return user1', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+        describe( 'limiter', () => {
+            describe( 'if limiter.try return error', () => {
+                beforeEach ( done => {
+                    this.limiter.try.throws();
 
-            let authSpy = sinon.spy( executor, 'authenticator' );
+                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( authSpy.calledOnce ).to.be.true;
-                        expect( authSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        authSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.equal( 'user1' );
-
-                                done();
-                            } )
-                            .catch( done );
-
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'authenticator should return user2', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let authSpy = sinon.spy( executor, 'authenticator' );
-
-            executor.execute( inputs, { scheme: 'token', credentials: 'testtoken2' } )
-                .then( result => {
-                    try {
-                        expect( authSpy.calledOnce ).to.be.true;
-                        expect( authSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        authSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.equal( 'user2' );
-
-                                done();
-                            } )
-                            .catch( done );
-
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'authenticator should return empty result', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let authSpy = sinon.spy( executor, 'authenticator' );
-
-            executor.execute( inputs, { scheme: 'key', credentials: 'testkey' } )
-                .then( result => {
-                    try {
-                        expect( authSpy.calledOnce ).to.be.true;
-                        expect( authSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        authSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.be.undefined;
-
-                                done();
-                            } )
-                            .catch( done );
-
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-    } );
-
-    describe( 'Executor Adapter', () => {
-        it( 'executor.adapter should be called once', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let adapterSpy = sinon.spy( executor, 'adapter' );
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( adapterSpy.called ).to.be.true;
-                        expect( adapterSpy.calledOnce ).to.be.true;
-
-                        expect( adapterSpy.calledWith( inputs, 'user1' ) ).to.be.true;
-                        expect( adapterSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
+                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                        errorObj = error;
                         done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
+                    } );
+                } );
 
-        it( 'executor.adapter should return right object for \'user1\'', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+                it( 'should return ServerError', () => {
+                    expect( errorObj ).to.be.instanceof( ServerError );
+                } );
 
-            let adapterSpy = sinon.spy( executor, 'adapter' );
+                it( 'limiter.try should be called once', () => {
+                    expect( this.limiter.try.calledOnce ).to.be.true;
+                } );
 
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( adapterSpy.calledOnce ).to.be.true;
-                        expect( adapterSpy.calledWith( inputs, 'user1' ) ).to.be.true;
+                it( 'database.connect should be called once', () => {
+                    expect( this.database.connect.called ).to.be.false;
+                } );
 
-                        adapterSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.deep.equal( { token: 'user1', name: `${inputs.firstName} ${inputs.lastName}` } );
+                it( 'dao.release should not be called', () => {
+                    expect( this.dao.release.called ).to.be.false;
+                } );
 
-                                done();
-                            } )
-                            .catch( done );
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
+                it( 'logger.error should be called once', () => {
+                    expect( this.logger.error.calledOnce ).to.be.true;
+                } );
+            } );
 
-        it( 'executor.adapter should return right object for \'user2\'', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+            describe( 'if limiter.try was rejected', () => {
+                beforeEach ( done => {
+                    this.limiter.try.returns( new Promise( ( resolve, reject ) => reject( 'Rate limit exceeded' ) ) );
 
-            let adapterSpy = sinon.spy( executor, 'adapter' );
+                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
-            executor.execute( inputs, { scheme: 'token', credentials: 'testtoken2' } )
-                .then( result => {
-                    try {
-                        expect( adapterSpy.calledOnce ).to.be.true;
-                        expect( adapterSpy.calledWith( inputs, 'user2' ) ).to.be.true;
-
-                        adapterSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.deep.equal( { token: 'user2', name: `${inputs.firstName} ${inputs.lastName}` } );
-
-                                done();
-                            } )
-                            .catch( done );
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-
-        it( 'executor.adapter should return right object for empty user', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let adapterSpy = sinon.spy( executor, 'adapter' );
-
-            executor.execute( inputs, { scheme: 'key', credentials: 'testkey' } )
-                .then( result => {
-                    try {
-                        expect( adapterSpy.calledOnce ).to.be.true;
-                        expect( adapterSpy.calledWith( inputs ) ).to.be.true;
-
-                        adapterSpy.firstCall.returnValue
-                            .then( data => {
-                                expect( data ).to.deep.equal( { token: undefined, name: `${inputs.firstName} ${inputs.lastName}` } );
-
-                                done();
-                            } )
-                            .catch( done );
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
-    } );
-
-    describe( 'Executor Action', () => {
-        it( 'executor.action should be called once with right arguments for user1', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
-
-            let actionSpy = sinon.spy( executor, 'action' );
-
-            executor.execute( inputs, requestor )
-                .then( result => {
-                    try {
-                        expect( actionSpy.called ).to.be.true;
-                        expect( actionSpy.calledOnce ).to.be.true;
-
-                        expect( actionSpy.calledWith( { token: 'user1', name: 'John Smith' } ) ).to.be.true;
-                        expect( actionSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
+                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                        errorObj = error;
                         done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
+                    } );
+                } );
+
+                it( 'should return ClientError', () => {
+                    expect( errorObj ).to.be.instanceof( ClientError );
+                } );
+
+                it( 'limiter.try should be called once', () => {
+                    expect( this.limiter.try.calledOnce ).to.be.true;
+                } );
+
+                it( 'database.connect should be called once', () => {
+                    expect( this.database.connect.called ).to.be.false;
+                } );
+
+                it( 'dao.release should not be called', () => {
+                    expect( this.dao.release.called ).to.be.false;
+                } );
+
+                it( 'logger.error should be called once', () => {
+                    expect( this.logger.error.calledOnce ).to.be.true;
+                } );
+            } );
         } );
 
-        it( 'executor.action should be called once with right arguments for user2', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+        describe( 'cache', () => {
+            describe( 'if cache.clear return error', () => {
+                beforeEach ( done => {
+                    this.cache.clear.throws();
 
-            let actionSpy = sinon.spy( executor, 'action' );
+                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
-            executor.execute( inputs, { scheme: 'token', credentials: 'testtoken2' } )
-                .then( result => {
-                    try {
-                        expect( actionSpy.called ).to.be.true;
-                        expect( actionSpy.calledOnce ).to.be.true;
-
-                        expect( actionSpy.calledWith( { token: 'user2', name: 'John Smith' } ) ).to.be.true;
-                        expect( actionSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
+                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                        errorObj = error;
                         done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
-        } );
+                    } );
+                } );
 
-        it( 'executor.action should be called once with right arguments for empty user', done => {
-            let executor = new Executor( context, helloWorldAction, helloWorldAdapter, options );
+                it( 'should return ServerError', () => {
+                    expect( errorObj ).to.be.instanceof( ServerError );
+                } );
 
-            let actionSpy = sinon.spy( executor, 'action' );
+                it( 'this.cache should be called once', () => {
+                    expect( this.cache.clear.calledOnce ).to.be.true;
+                } );
 
-            executor.execute( inputs, { scheme: 'key', credentials: 'testkey' } )
-                .then( result => {
-                    try {
-                        expect( actionSpy.called ).to.be.true;
-                        expect( actionSpy.calledOnce ).to.be.true;
+                it( 'dao.release should be called with (\'commit\') arguments', () => {
+                    expect( this.dao.release.calledWithExactly( 'commit' ) ).to.be.true;
+                } );
 
-                        expect( actionSpy.calledWith( { token: undefined, name: 'John Smith' } ) ).to.be.true;
-                        expect( actionSpy.firstCall.returnValue ).to.be.instanceof( Promise );
-
-                        done();
-                    } catch ( error ) {
-                        done( error );
-                    }
-                } )
-                .catch( done );
+                it( 'logger.error should be called once', () => {
+                    expect( this.logger.error.calledOnce ).to.be.true;
+                } );
+            } );
         } );
     } );
 } );
-
-// helpers
-function helloWorldAdapter(this: ActionContext, inputs: any, token: string): Promise<{ name: string, token: string }> {
-    return Promise.resolve({
-        token: token,
-        name : `${inputs.firstName} ${inputs.lastName}`
-    });
-}
-
-function helloWorldRejectedAdapter(this: ActionContext, inputs: any, token: string): Promise<any> {
-    return new Promise( ( resolve, reject ) => {
-        reject();
-    } );
-}
-
-function helloWorldAction(this: ActionContext, inputs: { token: string, name: string }): Promise<string> {
-    return Promise.resolve(`Hello, my name is ${inputs.name}, count=${this.settings.count}, token=${inputs.token}`);
-}
