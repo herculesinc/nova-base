@@ -52,4 +52,15 @@ class ServerError extends Error {
     }
 }
 exports.ServerError = ServerError;
+// PUBLIC FUNCTIONS
+// ================================================================================================
+function appendMessage(error, message) {
+    if (!error)
+        return undefined;
+    if (!message)
+        return error;
+    error.message = `${message}: ${error.message}`;
+    return error;
+}
+exports.appendMessage = appendMessage;
 //# sourceMappingURL=errors.js.map

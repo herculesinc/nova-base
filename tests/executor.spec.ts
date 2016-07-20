@@ -492,10 +492,6 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 it( 'dao.release should be called with (\'rollback\') arguments', () => {
                     expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
                 } );
-
-                it( 'logger.error should be called once', () => {
-                    expect( this.logger.error.calledOnce ).to.be.true;
-                } );
             } );
 
             describe( 'if authenticator was rejected', () => {
@@ -520,10 +516,6 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
 
                 it( 'dao.release should be called with (\'rollback\') arguments', () => {
                     expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
-                } );
-
-                it( 'logger.error should be called once', () => {
-                    expect( this.logger.error.calledOnce ).to.be.true;
                 } );
             } );
         } );
@@ -556,10 +548,6 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 it( 'dao.release should not be called', () => {
                     expect( this.dao.release.called ).to.be.false;
                 } );
-
-                it( 'logger.error should be called once', () => {
-                    expect( this.logger.error.calledOnce ).to.be.true;
-                } );
             } );
 
             describe( 'if limiter.try was rejected', () => {
@@ -589,10 +577,6 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 it( 'dao.release should not be called', () => {
                     expect( this.dao.release.called ).to.be.false;
                 } );
-
-                it( 'logger.error should be called once', () => {
-                    expect( this.logger.error.calledOnce ).to.be.true;
-                } );
             } );
         } );
 
@@ -619,10 +603,6 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
 
                 it( 'dao.release should be called with (\'commit\') arguments', () => {
                     expect( this.dao.release.calledWithExactly( 'commit' ) ).to.be.true;
-                } );
-
-                it( 'logger.error should be called once', () => {
-                    expect( this.logger.error.calledOnce ).to.be.true;
                 } );
             } );
         } );

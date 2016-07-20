@@ -1,6 +1,6 @@
 // IMPORTS
 // =================================================================================================
-import { AuthInputs } from './../../index';
+import { AuthInputs, Authenticator } from './../../index';
 import { ActionContext } from './../../lib/Action';
 import { validate } from './../../lib/validator';
 
@@ -14,7 +14,7 @@ const TOKEN_USER_MAP = {
 
 // AUTHENTICATOR
 // =================================================================================================
-export function authenticate(this: ActionContext, inputs: AuthInputs, options: any): Promise<string> {
+export const authenticator: Authenticator = function(this: ActionContext, inputs: AuthInputs, options: any): Promise<string> {
 
     try {
         if (inputs.scheme === 'token') {
@@ -33,3 +33,8 @@ export function authenticate(this: ActionContext, inputs: AuthInputs, options: a
         return Promise.reject(e);
     }
 }
+
+authenticator.toOwner = function(authResult: any): string {
+    if (!authResult) return undefined;
+    return authResult;
+};

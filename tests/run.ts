@@ -4,7 +4,7 @@ import { AuthInputs } from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
 
-import { authenticate } from './mocks/Authenticator';
+import { authenticator } from './mocks/Authenticator';
 import { MockCache } from './mocks/Cache';
 import { MockDatabase } from './mocks/Database';
 import { MockDispatcher } from './mocks/Dispatcher';
@@ -15,7 +15,7 @@ import { MockLogger } from './mocks/Logger';
 // SETUP
 // ================================================================================================
 const context: ExecutorContext = {
-    authenticator   : authenticate,
+    authenticator   : authenticator,
     database        : new MockDatabase(),
     cache           : new MockCache(),
     dispatcher      : new MockDispatcher(),

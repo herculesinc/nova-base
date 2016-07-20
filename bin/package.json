@@ -1,6 +1,6 @@
 {
   "name": "nova-base",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Foundation for Nova API framework",
   "keywords": [
     "nova",
@@ -8,8 +8,7 @@
     "framework"
   ],
   "scripts": {
-    "setup": "npm install && typings install",
-    "postinstall": "typings install"
+    "setup": "npm install && typings install"
   },
   "main": "index.js",
   "types": "nova-base.d.ts",

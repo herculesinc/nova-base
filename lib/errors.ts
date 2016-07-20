@@ -69,3 +69,13 @@ export class ServerError extends Error {
         };
     }
 }
+
+// PUBLIC FUNCTIONS
+// ================================================================================================
+export function appendMessage(error: Error, message: string): Error {
+    if (!error) return undefined;
+    if (!message) return error;
+
+    error.message = `${message}: ${error.message}`;
+    return error;
+}

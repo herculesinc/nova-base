@@ -36,10 +36,6 @@ class Executor {
             this.daoOptions = options.daoOptions;
             this.rateOptions = options.rateOptions;
             this.authOptions = options.authOptions;
-            this.errorsToLog = options.errorsToLog || 2 /* Server */;
-        }
-        else {
-            this.errorsToLog = 2 /* Server */;
         }
     }
     // PUBLIC METHODS
@@ -88,21 +84,8 @@ class Executor {
                 if (dao && dao.isActive) {
                     yield dao.release(dao.inTransaction ? 'rollback' : undefined);
                 }
-                // log the error, if needed
-                if (error instanceof errors_1.ClientError) {
-                    if (this.logger && (this.errorsToLog & 1 /* Client */))
-                        this.logger.error(error);
-                }
-                else if (error instanceof errors_1.ServerError) {
-                    if (this.logger && (this.errorsToLog & 2 /* Server */))
-                        this.logger.error(error);
-                }
-                else {
-                    // convert unknown errors to server errors
-                    error = new errors_1.ServerError(`Failed to execute ${this.action.name}`, error);
-                    if (this.logger && (this.errorsToLog & 2 /* Server */))
-                        this.logger.error(error);
-                }
+                // update the error message, and rethrow the error
+                error = errors_1.appendMessage(error, `Failed to execute ${this.action.name} action`);
                 return Promise.reject(error);
             }
         });

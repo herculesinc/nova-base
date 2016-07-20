@@ -32,11 +32,6 @@ declare module "nova-base" {
         daoOptions?     : DaoOptions;
         rateOptions?    : RateOptions;
         authOptions?    : any;
-        errorsToLog?    : ErrorLogOptions;
-    }
-
-    export const enum ErrorLogOptions {
-        None = 0, Client = 1, Server = 2, All = 3
     }
 
     export interface ExecutorContext {
@@ -58,7 +53,9 @@ declare module "nova-base" {
     // AUTHENTICATOR
     // --------------------------------------------------------------------------------------------
     export interface Authenticator {
-        (inputs: AuthInputs, options: any): Promise<any>
+        (inputs: AuthInputs, options: any): Promise<any>;
+
+        toOwner?: (authResult: any) => string;
     }
 
     export interface AuthInputs {
@@ -220,6 +217,7 @@ declare module "nova-base" {
     // UTILITIES
     // --------------------------------------------------------------------------------------------
     export const util: {
-        since: (start: number[]) => number
+        since   : (start: number[]) => number;
+        wrap    : (error: Error, message: string) => Error;
     };
 }

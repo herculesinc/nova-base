@@ -5,7 +5,7 @@ import {
     RateLimiter, RateOptions, RateScope
 } from './../index';
 import { Action, ActionContext, ActionAdapter } from './Action';
-import { ClientError, ServerError } from './errors';
+import { ClientError, ServerError, appendMessage } from './errors';
 import { since } from './util';
 
 // INTERFACES
@@ -14,11 +14,6 @@ export interface ExecutionOptions {
 	daoOptions?     : DaoOptions;
     rateOptions?    : RateOptions;
     authOptions?    : any;
-    errorsToLog?    : ErrorLogOptions;
-}
-
-export const enum ErrorLogOptions {
-    None = 0, Client = 1, Server = 2, All = 3
 }
 
 export interface ExecutorContext {
@@ -51,7 +46,6 @@ export class Executor<V,T> {
     daoOptions?     : DaoOptions;
     rateOptions?    : RateOptions;
     authOptions?    : any;
-    errorsToLog     : ErrorLogOptions;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -79,10 +73,6 @@ export class Executor<V,T> {
             this.daoOptions     = options.daoOptions;
             this.rateOptions    = options.rateOptions;
             this.authOptions    = options.authOptions;
-            this.errorsToLog    = options.errorsToLog || ErrorLogOptions.Server;
-        }
-        else {
-            this.errorsToLog    = ErrorLogOptions.Server;
         }
     }
 
@@ -143,19 +133,8 @@ export class Executor<V,T> {
                 await dao.release(dao.inTransaction ? 'rollback' : undefined);
             }
 
-            // log the error, if needed
-            if (error instanceof ClientError) {
-                if (this.logger && (this.errorsToLog & ErrorLogOptions.Client)) this.logger.error(error);
-            }
-            else if (error instanceof ServerError) {
-                if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
-            }
-            else {
-                // convert unknown errors to server errors
-                error = new ServerError(`Failed to execute ${this.action.name}`, error);
-                if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
-            }
-
+            // update the error message, and rethrow the error
+            error = appendMessage(error, `Failed to execute ${this.action.name} action`);
             return Promise.reject<any>(error);
         }
     }

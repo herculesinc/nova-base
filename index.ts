@@ -1,6 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { since, HttpCodeNames } from './lib/util';
+import { appendMessage } from './lib/errors';
 
 // INTERFACES
 // ================================================================================================
@@ -8,7 +9,9 @@ import { since, HttpCodeNames } from './lib/util';
 // AUTHENTICATOR
 // ------------------------------------------------------------------------------------------------
 export interface Authenticator {
-    (inputs: AuthInputs, options: any): Promise<any>
+    (inputs: AuthInputs, options: any): Promise<any>;
+
+    toOwner?: (authResult: any) => string;
 }
 
 export interface AuthInputs {
@@ -108,8 +111,9 @@ export interface Logger {
 // MODULE VARIABLES
 // =================================================================================================
 export const util = {
-    since: since
-}
+    since   : since,
+    wrap    : appendMessage
+};
 
 // RE-EXPORTS
 // =================================================================================================
