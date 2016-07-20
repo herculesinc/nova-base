@@ -18,6 +18,8 @@ declare module "nova-base" {
         register(task: Task);
         register(notice: Notice);
 
+        clear(filter: NoticeFilter);
+
         invalidate(key: string);
         isInvalid(key: string): boolean;
 
@@ -118,6 +120,11 @@ declare module "nova-base" {
         merge(notice: Notice): Notice;
     }
 
+    export interface NoticeFilter {
+        target? : string;
+        event?  : string;
+    }
+
     // RATE LIMITER
     // --------------------------------------------------------------------------------------------
     export interface RateLimiter {
@@ -184,16 +191,10 @@ declare module "nova-base" {
     export class ServerError extends Error {
         name        : string;
         status      : number;
+        cause       : Error;
 
         constructor(message: string, status?: number);
-    }
-
-    export class InternalServerError extends ServerError {
-        cause       : Error;
-        isCritical  : boolean;
-
-        constructor(message: string, isCritical?: boolean);
-        constructor(message: string, cause: Error, isCritical?: boolean);
+        constructor(message: string, cause?: Error, status?: number);
     }
 
     // VALIDATOR
