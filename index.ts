@@ -115,4 +115,4 @@ export const util = {
 // =================================================================================================
 export { Executor } from './lib/Executor';
 export { validate } from './lib/validator';
-export { ClientError, ServerError, InternalServerError } from './lib/errors';
+export { ClientError, ServerError } from './lib/errors';

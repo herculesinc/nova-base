@@ -20,7 +20,9 @@ class ActionContext {
         this.registerTask(taskOrNotice);
         this.registerNotice(taskOrNotice);
     }
-    // TODO: add methods for clearing tasks/notices with a filter
+    clear(filter) {
+        this.clearNotices(filter);
+    }
     invalidate(key) {
         if (!key)
             return;
@@ -74,13 +76,17 @@ class ActionContext {
         }
     }
     clearNotices(filter) {
-        if (!filter)
+        if (!filter || (!filter.event && !filter.target))
             return;
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
             let notice = this.notices[i];
             let sameEvent = (filter.event === notice.event);
             let sameTarget = (filter.target === notice.target);
+            if ((!filter.event || sameEvent) && (!filter.target || sameTarget)) {
+                this.notices[i] = undefined;
+                hasHoles = true;
+            }
         }
         if (hasHoles) {
             this.notices = util_1.clean(this.notices);

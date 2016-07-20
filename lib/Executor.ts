@@ -5,7 +5,7 @@ import {
     RateLimiter, RateOptions, RateScope
 } from './../index';
 import { Action, ActionContext, ActionAdapter } from './Action';
-import { ClientError, ServerError, InternalServerError } from './errors';
+import { ClientError, ServerError } from './errors';
 import { since } from './util';
 
 // INTERFACES
@@ -151,8 +151,8 @@ export class Executor<V,T> {
                 if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
             }
             else {
-                // if unknow error is encountred, assume the error is critical
-                error = new InternalServerError(`Failed to execute ${this.action.name}`, error, true);
+                // convert unknown errors to server errors
+                error = new ServerError(`Failed to execute ${this.action.name}`, error);
                 if (this.logger && (this.errorsToLog & ErrorLogOptions.Server)) this.logger.error(error);
             }
 

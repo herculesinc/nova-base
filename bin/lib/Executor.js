@@ -98,8 +98,8 @@ class Executor {
                         this.logger.error(error);
                 }
                 else {
-                    // if unknow error is encountred, assume the error is critical
-                    error = new errors_1.InternalServerError(`Failed to execute ${this.action.name}`, error, true);
+                    // convert unknown errors to server errors
+                    error = new errors_1.ServerError(`Failed to execute ${this.action.name}`, error);
                     if (this.logger && (this.errorsToLog & 2 /* Server */))
                         this.logger.error(error);
                 }

@@ -1,7 +1,8 @@
 // IMPORTS
 // ================================================================================================
-import { ClientError, InternalServerError } from './Errors';
+import { ClientError, ServerError } from './Errors';
 import { HttpStatusCode } from './util';
+import { isError } from 'util';
 
 // INTERFACES
 // ================================================================================================
@@ -23,12 +24,14 @@ export interface Validator extends BaseValidator {
 
 // VALIDATORS
 // ================================================================================================
-export const validate: Validator = function(condition: any, message?: string, isCritical?: boolean) {
-    if (!condition) throw new InternalServerError(message, isCritical);
+export const validate: Validator = function(condition: any, message?: string) {
+    if (!condition) throw new ServerError(message);
 } 
 
 validate.from = function(error: Error) {
-    if (error) throw new InternalServerError(error.message, error, false);
+    if (isError(error)) {
+        throw (error instanceof ServerError) ? error : new ServerError(error.message, error);
+    }
 }
 
 // REQUEST
@@ -38,7 +41,7 @@ validate.request = function (condition: any, message?: string) {
 }
 
 validate.request.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.BadRequest);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.BadRequest);
 }
 
 // AUTOHRIZED
@@ -48,7 +51,7 @@ validate.authorized = function (condition: any, message?: string) {
 }
 
 validate.authorized.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.Unauthorized);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.Unauthorized);
 }
 
 // INPUTS
@@ -58,7 +61,7 @@ validate.inputs = function (condition: any, message?: string) {
 }
 
 validate.inputs.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.InvalidInputs);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.InvalidInputs);
 }
 
 // EXISTS
@@ -68,7 +71,7 @@ validate.exists = function (condition: any, message?: string) {
 }
 
 validate.exists.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.NotFound);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.NotFound);
 }
 
 // CONTENT
@@ -78,7 +81,7 @@ validate.content = function (condition: any, message?: string) {
 }
 
 validate.content.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.UnsupportedContent);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.UnsupportedContent);
 }
 
 // ACCEPTS
@@ -88,7 +91,7 @@ validate.accepts = function (condition: any, message?: string) {
 }
 
 validate.accepts.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.NotAcceptable);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.NotAcceptable);
 }
 
 // ALLOWED
@@ -98,7 +101,7 @@ validate.allowed = function (condition: any, message?: string) {
 }
 
 validate.allowed.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.NotAllowed);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.NotAllowed);
 }
 
 // READY
@@ -108,5 +111,5 @@ validate.ready = function (condition: any, message?: string) {
 }
 
 validate.ready.from = function (error: Error) {
-    if (error) throw new ClientError(error.message, HttpStatusCode.NotReady);
+    if (isError(error)) throw new ClientError(error.message, HttpStatusCode.NotReady);
 }

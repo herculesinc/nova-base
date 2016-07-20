@@ -5,7 +5,7 @@ import * as sinon from 'sinon';
 import { AuthInputs } from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
-import { InternalServerError } from './../lib/errors';
+import { ServerError } from './../lib/errors';
 
 import { authenticate } from './mocks/Authenticator';
 import { MockCache } from './mocks/Cache';
@@ -128,7 +128,7 @@ describe( 'Nova-base tests', () => {
                         expect( errorSpy.callCount ).to.equal( 1 );
 
                         expect( errorSpy.firstCall.args.length ).to.equal( 1 );
-                        expect( errorSpy.firstCall.args[ 0 ] ).to.be.instanceof( InternalServerError );
+                        expect( errorSpy.firstCall.args[ 0 ] ).to.be.instanceof( ServerError );
 
                         done();
                     } catch ( error ) {

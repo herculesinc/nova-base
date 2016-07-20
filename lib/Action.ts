@@ -49,7 +49,9 @@ export class ActionContext {
         this.registerNotice(taskOrNotice as Notice);
     }
     
-    // TODO: add methods for clearing tasks/notices with a filter
+    clear(filter: NoticeFilter) {
+        this.clearNotices(filter);
+    }
 
     invalidate(key: string) {
         if (!key) return;
@@ -110,7 +112,7 @@ export class ActionContext {
     }
 
     private clearNotices(filter: NoticeFilter) {
-        if (!filter) return;
+        if (!filter || (!filter.event && !filter.target)) return;
 
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
@@ -118,11 +120,10 @@ export class ActionContext {
             let sameEvent = (filter.event === notice.event);
             let sameTarget = (filter.target === notice.target);
             
-            // TODO: complete
-            //if (sameEvent || sameTarget && (filter.event )) {
-            //    this.notices[i] = undefined;
-            //    hasHoles = true;
-            //}
+            if ((!filter.event || sameEvent) && (!filter.target || sameTarget)) {
+                this.notices[i] = undefined;
+                hasHoles = true;
+            }
         }
 
         if (hasHoles) {

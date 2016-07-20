@@ -12,7 +12,7 @@
     "postinstall": "typings install"
   },
   "main": "index.js",
-  "types": "index.d.ts",
+  "types": "nova-base.d.ts",
   "license": "MIT",
   "author": {
     "name": "Credo360, Inc.",

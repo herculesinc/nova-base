@@ -7,74 +7,65 @@ import { HttpStatusCode, HttpCodeNames } from './util';
 export class ClientError extends Error {
 	name    : string;
 	status  : number;
-    // TODO: add code property
+    code?   : number;
 
-	constructor(message: string, status?: number) {
-        super(message);
+    constructor(message: string, status?: number);
+    constructor(descriptor: [number, string], status?: number);
+	constructor(messageOrDescriptor: string | [number, string], status?: number) {
+        if (Array.isArray(messageOrDescriptor)) {
+            super(messageOrDescriptor[1]);
+            this.code = messageOrDescriptor[0];
+        }
+        else {
+            super(messageOrDescriptor);
+        }
+        
         this.status = status || HttpStatusCode.BadRequest;
 		this.name = HttpCodeNames.get(this.status) || 'Unknown Error';
         Error.captureStackTrace(this, this.constructor);
 	}
 
-    getBody(): any {
+    toJSON(): any {
         return {
             name    : this.name,
+            code    : this.code,
             message : this.message
         };
     }
-
-    getHeaders(): any {
-        return undefined;
-    }
 }
 
-// SERVER ERROR
+// SERVER ERRORS
 // ================================================================================================
 export class ServerError extends Error {
-	name    : string;
-	status  : number;
+    name        : string;
+	status      : number;
+    cause?      : Error;
 
-	constructor(message: string, status?: number) {
+    constructor(message: string, status?: number);
+    constructor(message: string, cause?: Error, status?: number);
+	constructor(message: string, causeOrStatus?: Error | number, status?: number) {
         super(message);
-        this.status = status || HttpStatusCode.InternalServerError;
-		this.name = HttpCodeNames.get(this.status) || 'Unknown Error';
+
+        if (typeof causeOrStatus === 'number') {
+            this.status = causeOrStatus;
+        }
+        else {
+			this.status = status || HttpStatusCode.InternalServerError;
+            this.cause = causeOrStatus;
+		}
+        this.name = HttpCodeNames.get(this.status) || 'Unknown Error';
+
         Error.captureStackTrace(this, this.constructor);
 	}
 
-    getBody(): any {
+    toJSON(): any {
+        const cause = this.cause && this.cause instanceof ServerError 
+            ? this.cause : this.cause.message;
+
         return {
             name    : this.name,
-            message : this.message
-        };
-    }
-}
-
-export class InternalServerError extends ServerError {
-    cause       : Error;
-    isCritical  : boolean;
-    
-    constructor(message: string, isCritical?: boolean);
-    constructor(message: string, cause?: Error, isCritical?: boolean);
-	constructor(message: string, causeOrCritical?: Error | boolean, isCritical?: boolean) {
-        super(message);
-
-        if (!causeOrCritical) {
-            this.isCritical = false;
-        }
-        else if (typeof causeOrCritical === 'boolean') {
-			this.isCritical = causeOrCritical;
-		}
-		else {
-			this.cause = causeOrCritical;
-            this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
-		}
-	}
-
-    getBody(): any {
-        // TODO: improve content generation
-        return {
             message : this.message,
-            cause   : this.cause
+            cause   : cause 
         };
     }
 }

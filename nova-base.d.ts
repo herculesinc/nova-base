@@ -175,11 +175,10 @@ declare module "nova-base" {
     export class ClientError extends Error {
         name        : string;
         status      : string;
+        code?       : number;
 
         constructor(message: string, status?: number);
-
-        getBody()   : any;
-        getHeaders(): any;
+        constructor(descriptor: [number, string], status?: number);
     }
 
     export class ServerError extends Error {
@@ -187,8 +186,6 @@ declare module "nova-base" {
         status      : number;
 
         constructor(message: string, status?: number);
-
-        getBody()   : any;
     }
 
     export class InternalServerError extends ServerError {

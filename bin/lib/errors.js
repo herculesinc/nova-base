@@ -5,62 +5,51 @@ const util_1 = require('./util');
 // CLIENT ERROR
 // ================================================================================================
 class ClientError extends Error {
-    // TODO: add code property
-    constructor(message, status) {
-        super(message);
+    constructor(messageOrDescriptor, status) {
+        if (Array.isArray(messageOrDescriptor)) {
+            super(messageOrDescriptor[1]);
+            this.code = messageOrDescriptor[0];
+        }
+        else {
+            super(messageOrDescriptor);
+        }
         this.status = status || util_1.HttpStatusCode.BadRequest;
         this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
         Error.captureStackTrace(this, this.constructor);
     }
-    getBody() {
+    toJSON() {
         return {
             name: this.name,
+            code: this.code,
             message: this.message
         };
     }
-    getHeaders() {
-        return undefined;
-    }
 }
 exports.ClientError = ClientError;
-// SERVER ERROR
+// SERVER ERRORS
 // ================================================================================================
 class ServerError extends Error {
-    constructor(message, status) {
+    constructor(message, causeOrStatus, status) {
         super(message);
-        this.status = status || util_1.HttpStatusCode.InternalServerError;
+        if (typeof causeOrStatus === 'number') {
+            this.status = causeOrStatus;
+        }
+        else {
+            this.status = status || util_1.HttpStatusCode.InternalServerError;
+            this.cause = causeOrStatus;
+        }
         this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
         Error.captureStackTrace(this, this.constructor);
     }
-    getBody() {
+    toJSON() {
+        const cause = this.cause && this.cause instanceof ServerError
+            ? this.cause : this.cause.message;
         return {
             name: this.name,
-            message: this.message
+            message: this.message,
+            cause: cause
         };
     }
 }
 exports.ServerError = ServerError;
-class InternalServerError extends ServerError {
-    constructor(message, causeOrCritical, isCritical) {
-        super(message);
-        if (!causeOrCritical) {
-            this.isCritical = false;
-        }
-        else if (typeof causeOrCritical === 'boolean') {
-            this.isCritical = causeOrCritical;
-        }
-        else {
-            this.cause = causeOrCritical;
-            this.isCritical = typeof isCritical === 'boolean' ? isCritical : false;
-        }
-    }
-    getBody() {
-        // TODO: improve content generation
-        return {
-            message: this.message,
-            cause: this.cause
-        };
-    }
-}
-exports.InternalServerError = InternalServerError;
 //# sourceMappingURL=errors.js.map
