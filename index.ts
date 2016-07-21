@@ -1,7 +1,7 @@
 // IMPORTS
 // ================================================================================================
 import { since, HttpCodeNames } from './lib/util';
-import { appendMessage } from './lib/errors';
+import { wrapMessage } from './lib/errors';
 
 // INTERFACES
 // ================================================================================================
@@ -112,11 +112,11 @@ export interface Logger {
 // =================================================================================================
 export const util = {
     since   : since,
-    wrap    : appendMessage
+    wrap    : wrapMessage
 };
 
 // RE-EXPORTS
 // =================================================================================================
 export { Executor } from './lib/Executor';
 export { validate } from './lib/validator';
-export { ClientError, ServerError } from './lib/errors';
+export { Exception } from './lib/errors';

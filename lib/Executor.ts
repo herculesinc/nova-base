@@ -5,7 +5,7 @@ import {
     RateLimiter, RateOptions, RateScope
 } from './../index';
 import { Action, ActionContext, ActionAdapter } from './Action';
-import { ClientError, ServerError, appendMessage } from './errors';
+import { wrapMessage } from './errors';
 import { since } from './util';
 
 // INTERFACES
@@ -134,7 +134,7 @@ export class Executor<V,T> {
             }
 
             // update the error message, and rethrow the error
-            error = appendMessage(error, `Failed to execute ${this.action.name} action`);
+            error = wrapMessage(error, `Failed to execute ${this.action.name} action`);
             return Promise.reject<any>(error);
         }
     }

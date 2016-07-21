@@ -7,7 +7,7 @@ const errors_1 = require('./lib/errors');
 // =================================================================================================
 exports.util = {
     since: util_1.since,
-    wrap: errors_1.appendMessage
+    wrap: errors_1.wrapMessage
 };
 // RE-EXPORTS
 // =================================================================================================
@@ -16,6 +16,5 @@ exports.Executor = Executor_1.Executor;
 var validator_1 = require('./lib/validator');
 exports.validate = validator_1.validate;
 var errors_2 = require('./lib/errors');
-exports.ClientError = errors_2.ClientError;
-exports.ServerError = errors_2.ServerError;
+exports.Exception = errors_2.Exception;
 //# sourceMappingURL=index.js.map

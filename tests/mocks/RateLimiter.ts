@@ -1,12 +1,12 @@
 // IMPORTS
 // ================================================================================================
 import { RateLimiter, RateOptions } from './../../index';
-import { ClientError } from './../../lib/errors';
+import { Exception } from './../../lib/errors';
 import { HttpStatusCode } from './../../lib/util';
 
 // RATEL LIMIT ERRROR
 // ================================================================================================
-export class RateLimitError extends ClientError {
+export class RateLimitError extends Exception {
     id          : string;
     retryAfter  : number;
 

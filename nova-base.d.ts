@@ -174,35 +174,45 @@ declare module "nova-base" {
         ServiceUnavailable  = 503
     }
 
-    // ERRORS
+    // EXCEPTION
     // --------------------------------------------------------------------------------------------
-    export class ClientError extends Error {
-        name        : string;
-        status      : string;
+    export interface ExceptionOptions {
+        status?     : number;
+        message?    : string;
         code?       : number;
-
-        constructor(message: string, status?: number);
-        constructor(descriptor: [number, string], status?: number);
+        cause?      : Error;
+        stackStart? : Function;
     }
 
-    export class ServerError extends Error {
-        name        : string;
-        status      : number;
-        cause       : Error;
+    export class Exception extends Error {
+        name    : string;
+        status  : number;
+        code?   : number;
+        cause?  : Error;
 
-        constructor(message: string, status?: number);
-        constructor(message: string, cause?: Error, status?: number);
+        constructor(options: ExceptionOptions);
+        constructor(message: string, status: number);
+
+        isClientError: boolean;
+        isServerError: boolean; 
     }
 
     // VALIDATOR
     // --------------------------------------------------------------------------------------------
-    interface BaseValidator {
+    export interface BaseValidator {
         (condition: any, message: string): void;
-        from?: (error: Error) => void;
+        from?: (error: Error, mesage?: string) => void;
+    }
+
+    interface DescriptorValidator {
+        (condition: any, message: string): void;
+        (condition: any, descriptor: [number, string]): void;
+
+        from?: (error: Error, messageOrDescriptor?: string | [number, string]) => void;
     }
 
     export interface Validator extends BaseValidator {
-        request?    : BaseValidator;
+        request?    : DescriptorValidator;
         authorized? : BaseValidator;
         inputs?     : BaseValidator;
         exists?     : BaseValidator;

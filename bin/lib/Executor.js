@@ -85,7 +85,7 @@ class Executor {
                     yield dao.release(dao.inTransaction ? 'rollback' : undefined);
                 }
                 // update the error message, and rethrow the error
-                error = errors_1.appendMessage(error, `Failed to execute ${this.action.name} action`);
+                error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
                 return Promise.reject(error);
             }
         });

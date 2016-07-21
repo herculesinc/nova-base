@@ -2,20 +2,36 @@
 // IMPORTS
 // ================================================================================================
 const util_1 = require('./util');
-// CLIENT ERROR
+// EXCEPTION CLASS
 // ================================================================================================
-class ClientError extends Error {
-    constructor(messageOrDescriptor, status) {
-        if (Array.isArray(messageOrDescriptor)) {
-            super(messageOrDescriptor[1]);
-            this.code = messageOrDescriptor[0];
+class Exception extends Error {
+    constructor(messageOrOptions, status) {
+        if (typeof messageOrOptions === 'string') {
+            super(messageOrOptions);
+            this.status = status || util_1.HttpStatusCode.InternalServerError;
+            Error.captureStackTrace(this, this.constructor);
         }
         else {
-            super(messageOrDescriptor);
+            super(messageOrOptions.message);
+            this.status = messageOrOptions.status || util_1.HttpStatusCode.InternalServerError;
+            this.code = messageOrOptions.code;
+            this.cause = messageOrOptions.cause;
+            if (this.cause) {
+                this.message = this.message
+                    ? `${this.message}: ${this.cause.message}`
+                    : this.cause.message;
+            }
+            Error.captureStackTrace(this, messageOrOptions.stackStart || this.constructor);
         }
-        this.status = status || util_1.HttpStatusCode.BadRequest;
         this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
-        Error.captureStackTrace(this, this.constructor);
+    }
+    // PUBLIC MEMBERS
+    // --------------------------------------------------------------------------------------------
+    get isClientError() {
+        return (this.status >= 400 && this.status < 500);
+    }
+    get isServerError() {
+        return (this.status >= 500 && this.status < 600);
     }
     toJSON() {
         return {
@@ -25,36 +41,10 @@ class ClientError extends Error {
         };
     }
 }
-exports.ClientError = ClientError;
-// SERVER ERRORS
-// ================================================================================================
-class ServerError extends Error {
-    constructor(message, causeOrStatus, status) {
-        super(message);
-        if (typeof causeOrStatus === 'number') {
-            this.status = causeOrStatus;
-        }
-        else {
-            this.status = status || util_1.HttpStatusCode.InternalServerError;
-            this.cause = causeOrStatus;
-        }
-        this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
-        Error.captureStackTrace(this, this.constructor);
-    }
-    toJSON() {
-        const cause = this.cause && this.cause instanceof ServerError
-            ? this.cause : this.cause.message;
-        return {
-            name: this.name,
-            message: this.message,
-            cause: cause
-        };
-    }
-}
-exports.ServerError = ServerError;
+exports.Exception = Exception;
 // PUBLIC FUNCTIONS
 // ================================================================================================
-function appendMessage(error, message) {
+function wrapMessage(error, message) {
     if (!error)
         return undefined;
     if (!message)
@@ -62,5 +52,5 @@ function appendMessage(error, message) {
     error.message = `${message}: ${error.message}`;
     return error;
 }
-exports.appendMessage = appendMessage;
+exports.wrapMessage = wrapMessage;
 //# sourceMappingURL=errors.js.map
