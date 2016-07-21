@@ -72,14 +72,16 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
         };
 
         this.task = <Task> {
-            queue: 'task',
-            merge: sinon.stub().returns( this.task )
+            queue   : 'task',
+            payload : {},
+            merge   : sinon.stub().returns( this.task )
         };
 
         this.notice = <Notice> {
-            target: 'target',
-            event : 'event',
-            merge : sinon.stub().returns( this.notice )
+            target  : 'target',
+            event   : 'event',
+            payload : {},
+            merge   : sinon.stub().returns( this.notice )
         };
 
         this.adapter = sinon.stub();

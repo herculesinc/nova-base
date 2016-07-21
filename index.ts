@@ -56,7 +56,8 @@ export interface Dispatcher {
 }
 
 export interface Task {
-    queue: string;   
+    queue   : string;
+    payload : any;
     merge(task: Task): Task;
 }
 
@@ -69,12 +70,15 @@ export interface Notifier {
 
 export interface Notice {
     target  : string;
+    topic?  : string;
     event   : string;
+    payload : any;
     merge(notice: Notice): Notice;
 }
 
 export interface NoticeFilter {
     target? : string;
+    topic?  : string;
     event?  : string;
 }
 

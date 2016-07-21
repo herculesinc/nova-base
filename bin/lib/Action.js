@@ -83,7 +83,8 @@ class ActionContext {
             let notice = this.notices[i];
             let sameEvent = (filter.event === notice.event);
             let sameTarget = (filter.target === notice.target);
-            if ((!filter.event || sameEvent) && (!filter.target || sameTarget)) {
+            let sameTopic = (filter.topic === notice.topic);
+            if ((!filter.event || sameEvent) && (!filter.target || sameTarget) && (!filter.topic || sameTopic)) {
                 this.notices[i] = undefined;
                 hasHoles = true;
             }
