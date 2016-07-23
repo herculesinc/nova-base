@@ -1,6 +1,4 @@
 "use strict";
-// IMPORTS
-// ================================================================================================
 const util_1 = require('./lib/util');
 const errors_1 = require('./lib/errors');
 // MODULE VARIABLES

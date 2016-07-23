@@ -1,5 +1,9 @@
 declare module "nova-base" {
 
+    // IMPORTS
+    // --------------------------------------------------------------------------------------------
+    import * as http from 'http';
+
     // ACTION
     // --------------------------------------------------------------------------------------------
     export interface Action<V,T> {
@@ -13,6 +17,7 @@ declare module "nova-base" {
     export interface ActionContext {
         dao     : Dao;
         cache   : Cache;
+        logger  : Logger;
         settings: any;
 
         register(task: Task);
@@ -29,9 +34,9 @@ declare module "nova-base" {
     // EXECUTOR
     // --------------------------------------------------------------------------------------------
     export interface ExecutionOptions {
-        daoOptions?     : DaoOptions;
-        rateOptions?    : RateOptions;
         authOptions?    : any;
+        daoOptions?     : DaoOptions;
+        rateLimits?     : RateLimits;
     }
 
     export interface ExecutorContext {
@@ -138,11 +143,11 @@ declare module "nova-base" {
     export interface RateOptions {
         window  : number;
         limit   : number;
-        scope?  : RateScope;
     }
 
-    export const enum RateScope {
-        Local = 1, Global = 2
+    export interface RateLimits {
+        local?  : RateOptions;
+        global? : RateOptions;
     }
 
     // LOGGER
@@ -157,6 +162,8 @@ declare module "nova-base" {
         log(event: string, properties?: { [key: string]: any });
         track(metric: string, value: number);
         trace(service: string, command: string, time: number, success?: boolean);
+
+        request(request: http.IncomingMessage, response: http.ServerResponse);
     }
 
     // HTTP STATUS CODES

@@ -1,5 +1,6 @@
 // IMPORTS
 // ================================================================================================
+import * as http from 'http';
 import { since, HttpCodeNames } from './lib/util';
 import { wrapMessage } from './lib/errors';
 
@@ -30,8 +31,9 @@ export interface DaoOptions {
 }
 
 export interface Dao {
-    isActive: boolean;
-    inTransaction: boolean;
+    isActive        : boolean;
+    inTransaction   : boolean;
+
     release(action?: 'commit' | 'rollback'): Promise<any>;
 }
 
@@ -58,6 +60,7 @@ export interface Dispatcher {
 export interface Task {
     queue   : string;
     payload : any;
+
     merge(task: Task): Task;
 }
 
@@ -73,6 +76,7 @@ export interface Notice {
     topic?  : string;
     event   : string;
     payload : any;
+    
     merge(notice: Notice): Notice;
 }
 
@@ -91,11 +95,6 @@ export interface RateLimiter {
 export interface RateOptions {
     window  : number;
     limit   : number;
-    scope?  : RateScope;
-}
-
-export const enum RateScope {
-    Local = 1, Global = 2
 }
 
 // LOGGER
@@ -110,6 +109,8 @@ export interface Logger {
     log(event: string, properties?: { [key: string]: any });
     track(metric: string, value: number);
     trace(service: string, command: string, time: number, success?: boolean);
+
+    request(request: http.IncomingMessage, response: http.ServerResponse);
 }
 
 // MODULE VARIABLES

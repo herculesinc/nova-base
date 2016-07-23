@@ -9,9 +9,11 @@ import { ActionContext } from './../lib/Action';
 import { MockDao } from './mocks/Database';
 
 const options: ExecutionOptions = {
-    authOptions: { foo: 'bar' },
-    daoOptions : { startTransaction: true },
-    rateOptions: { limit: 10, window: 250 }
+    authOptions : { foo: 'bar' },
+    daoOptions  : { startTransaction: true },
+    rateLimits: {
+        global  : { limit: 10, window: 250 }
+    }
 };
 
 const settings  = { count: 5 };
@@ -51,13 +53,14 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
         this.limiter    = <RateLimiter> { try: sinon.stub() };
 
         this.logger = <Logger> {
-            debug: sinon.spy(),
-            log  : sinon.spy(),
-            info : sinon.spy(),
-            warn : sinon.spy(),
-            error: sinon.spy(),
-            track: sinon.spy(),
-            trace: sinon.spy()
+            debug   : sinon.spy(),
+            log     : sinon.spy(),
+            info    : sinon.spy(),
+            warn    : sinon.spy(),
+            error   : sinon.spy(),
+            track   : sinon.spy(),
+            trace   : sinon.spy(),
+            request : sinon.spy()
         };
 
         this.context = <ExecutorContext> {
@@ -186,8 +189,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with daoOptions arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, options.rateOptions ) ).to.be.true;
+            it( 'limiter.try should be called with rateLimits.global arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, options.rateLimits.global ) ).to.be.true;
             } );
 
             it( 'limiter.try should return Promise<Dao>', () => {
@@ -386,14 +389,14 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with daoOptions arguments', () => {
-                expect( this.limiter.try.calledWithExactly( 'requestor', options.rateOptions ) ).to.be.true;
+            it( 'limiter.try should be called with rateLimits.global arguments', () => {
+                expect( this.limiter.try.calledWithExactly( 'requestor', options.rateLimits.global ) ).to.be.true;
             } );
         } );
 
         describe( 'when using local scope', () => {
             beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateOptions : { limit: 10, window: 250, scope: 1 } } );
+                tmpOptions = Object.assign( {}, options, { rateLimits : { local: { limit: 10, window: 250, scope: 1 } } } );
 
                 this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
@@ -404,14 +407,14 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with daoOptions arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, tmpOptions.rateOptions ) ).to.be.true;
+            it( 'limiter.try should be called with rateLimits.local arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, tmpOptions.rateLimits.local ) ).to.be.true;
             } );
         } );
 
         describe( 'when using global scope', () => {
             beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateOptions : { limit: 10, window: 250, scope: 2 } } );
+                tmpOptions = Object.assign( {}, options, { rateLimits : { global: { limit: 10, window: 250, scope: 2 } } } );
 
                 this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
@@ -422,8 +425,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with daoOptions arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, tmpOptions.rateOptions ) ).to.be.true;
+            it( 'limiter.try should be called with rateLimits.global arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, tmpOptions.rateLimits.global ) ).to.be.true;
             } );
         } );
     } );

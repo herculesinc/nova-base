@@ -2,18 +2,38 @@
 // ================================================================================================
 import {
     Database, Dao, DaoOptions, Cache, Authenticator, AuthInputs, Dispatcher, Notifier, Logger,
-    RateLimiter, RateOptions, RateScope
+    RateLimiter, RateOptions
 } from './../index';
 import { Action, ActionContext, ActionAdapter } from './Action';
 import { wrapMessage } from './errors';
 import { since } from './util';
 
+// MODULE VARIABLES
+// =================================================================================================
+function noop() {};
+
+const noopLogger: Logger = {
+    debug   : noop,
+    info    : noop,
+    warn    : noop,
+    error   : noop,
+    log     : noop,
+    track   : noop,
+    trace   : noop,
+    request : noop
+};
+
 // INTERFACES
 // ================================================================================================
 export interface ExecutionOptions {
-	daoOptions?     : DaoOptions;
-    rateOptions?    : RateOptions;
     authOptions?    : any;
+	daoOptions?     : DaoOptions;
+    rateLimits?     : RateLimits;
+}
+
+export interface RateLimits {
+    local?          : RateOptions;
+    global?         : RateOptions;
 }
 
 export interface ExecutorContext {
@@ -37,15 +57,15 @@ export class Executor<V,T> {
     dispatcher      : Dispatcher;
     notifier        : Notifier;
     limiter?        : RateLimiter;
-    logger?         : Logger;
+    logger          : Logger;
     settings?       : any;
 
     action          : Action<V,T>;
     adapter?        : ActionAdapter<V>;
 
-    daoOptions?     : DaoOptions;
-    rateOptions?    : RateOptions;
     authOptions?    : any;
+    daoOptions?     : DaoOptions;
+    rateLimits?     : RateLimits;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -63,7 +83,7 @@ export class Executor<V,T> {
         this.dispatcher     = context.dispatcher;
         this.notifier       = context.notifier;
         this.limiter        = context.limiter;
-        this.logger         = context.logger;
+        this.logger         = context.logger || noopLogger;
         this.settings       = context.settings;
 
         this.action         = action;
@@ -71,7 +91,7 @@ export class Executor<V,T> {
 
         if (options) {
             this.daoOptions     = options.daoOptions;
-            this.rateOptions    = options.rateOptions;
+            this.rateLimits     = options.rateLimits;
             this.authOptions    = options.authOptions;
         }
     }
@@ -83,20 +103,20 @@ export class Executor<V,T> {
         const start = process.hrtime();
 
         try {
-            this.logger && this.logger.debug(`Executing ${this.action.name} action`);
+            this.logger.debug(`Executing ${this.action.name} action`);
 
             // enforce rate limit
-            if (this.rateOptions && requestor) {
-                const scope: RateScope = this.rateOptions.scope || RateScope.Global;
-
+            if (this.rateLimits && requestor) {
                 const key = (typeof requestor !== 'string')
                     ? `${requestor.scheme}::${requestor.credentials}` : requestor;
 
-                const localTry = (scope & RateScope.Local)
-                    ? this.limiter.try(`${key}::${this.action.name}`, this.rateOptions) : undefined;
+                const localTry = this.rateLimits.local
+                    ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
+                    : undefined;
 
-                const globalTry = (scope & RateScope.Global)
-                    ? this.limiter.try(key, this.rateOptions) : undefined;
+                const globalTry = this.rateLimits.global
+                    ? this.limiter.try(key, this.rateLimits.global) 
+                    : undefined;
 
                 await Promise.all([localTry, globalTry]);
             }
@@ -124,7 +144,7 @@ export class Executor<V,T> {
             await Promise.all([taskPromise, noticePromise]);
 
             // log executiong time and return the result
-            this.logger && this.logger.log(`Executed ${this.action.name}`, { time: since(start) });
+            this.logger.log(`Executed ${this.action.name} action`, { time: since(start) });
             return result;
         }
         catch (error) {
@@ -174,7 +194,7 @@ function validateContext(context: ExecutorContext, options: ExecutionOptions) {
         if (typeof context.limiter.try !== 'function') throw new TypeError('Cannot create an Executor: Rate Limiter is invalid');
     }
     else {
-        if (options && options.rateOptions) throw new Error('Cannot create an Executor: Rate Limiter was not provided')
+        if (options && options.rateLimits) throw new Error('Cannot create an Executor: Rate Limiter was not provided')
     }
 
     if (context.logger) {

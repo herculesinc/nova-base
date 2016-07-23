@@ -10,6 +10,20 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 const Action_1 = require('./Action');
 const errors_1 = require('./errors');
 const util_1 = require('./util');
+// MODULE VARIABLES
+// =================================================================================================
+function noop() { }
+;
+const noopLogger = {
+    debug: noop,
+    info: noop,
+    warn: noop,
+    error: noop,
+    log: noop,
+    track: noop,
+    trace: noop,
+    request: noop
+};
 // CLASS DEFINITION
 // ================================================================================================
 class Executor {
@@ -28,13 +42,13 @@ class Executor {
         this.dispatcher = context.dispatcher;
         this.notifier = context.notifier;
         this.limiter = context.limiter;
-        this.logger = context.logger;
+        this.logger = context.logger || noopLogger;
         this.settings = context.settings;
         this.action = action;
         this.adapter = adapter;
         if (options) {
             this.daoOptions = options.daoOptions;
-            this.rateOptions = options.rateOptions;
+            this.rateLimits = options.rateLimits;
             this.authOptions = options.authOptions;
         }
     }
@@ -45,16 +59,17 @@ class Executor {
             var dao, authInfo;
             const start = process.hrtime();
             try {
-                this.logger && this.logger.debug(`Executing ${this.action.name} action`);
+                this.logger.debug(`Executing ${this.action.name} action`);
                 // enforce rate limit
-                if (this.rateOptions && requestor) {
-                    const scope = this.rateOptions.scope || 2 /* Global */;
+                if (this.rateLimits && requestor) {
                     const key = (typeof requestor !== 'string')
                         ? `${requestor.scheme}::${requestor.credentials}` : requestor;
-                    const localTry = (scope & 1 /* Local */)
-                        ? this.limiter.try(`${key}::${this.action.name}`, this.rateOptions) : undefined;
-                    const globalTry = (scope & 2 /* Global */)
-                        ? this.limiter.try(key, this.rateOptions) : undefined;
+                    const localTry = this.rateLimits.local
+                        ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
+                        : undefined;
+                    const globalTry = this.rateLimits.global
+                        ? this.limiter.try(key, this.rateLimits.global)
+                        : undefined;
                     yield Promise.all([localTry, globalTry]);
                 }
                 // open database connection, create context, and authenticate action if needed
@@ -76,7 +91,7 @@ class Executor {
                 const noticePromise = this.notifier.send(context.notices);
                 yield Promise.all([taskPromise, noticePromise]);
                 // log executiong time and return the result
-                this.logger && this.logger.log(`Executed ${this.action.name}`, { time: util_1.since(start) });
+                this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
                 return result;
             }
             catch (error) {
@@ -134,7 +149,7 @@ function validateContext(context, options) {
             throw new TypeError('Cannot create an Executor: Rate Limiter is invalid');
     }
     else {
-        if (options && options.rateOptions)
+        if (options && options.rateLimits)
             throw new Error('Cannot create an Executor: Rate Limiter was not provided');
     }
     if (context.logger) {

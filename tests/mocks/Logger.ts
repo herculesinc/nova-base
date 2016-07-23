@@ -1,10 +1,11 @@
 // IMPORTS
 // =================================================================================================
+import * as http from 'http';
 import { Logger } from './../../index';
 
 // LOGGER CLASS
 // =================================================================================================
-export class MockLogger {
+export class MockLogger implements Logger {
 
     debug(message: string) { /*console.log(message);*/ }
     info (message: string) { /*console.info(message);*/ }
@@ -22,5 +23,9 @@ export class MockLogger {
 
     trace(service: string, command: string, time: number, success?: boolean) {
         // console.log(`[${service}]: executed {${command}} in ${time} ms`)
+    }
+
+    request(request: http.IncomingMessage, response: http.ServerResponse) {
+
     }
 }
