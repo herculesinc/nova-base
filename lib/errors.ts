@@ -12,7 +12,7 @@ export interface ExceptionOptions {
     stackStart? : Function;
 }
 
-// EXCEPTION CLASS
+// BASE EXCEPTION CLASS
 // ================================================================================================
 export class Exception extends Error {
     name    : string;
@@ -66,6 +66,15 @@ export class Exception extends Error {
         };
     }
 }
+
+// DERIVED ERROR CLASSESS
+// ================================================================================================
+export class TooBusyError extends Exception {
+    constructor(message?: string) {
+        super(message || 'The server is too busy', HttpStatusCode.ServiceUnavailable);
+    }
+}
+
 
 // PUBLIC FUNCTIONS
 // ================================================================================================

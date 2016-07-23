@@ -2,7 +2,7 @@
 // IMPORTS
 // ================================================================================================
 const util_1 = require('./util');
-// EXCEPTION CLASS
+// BASE EXCEPTION CLASS
 // ================================================================================================
 class Exception extends Error {
     constructor(messageOrOptions, status) {
@@ -42,6 +42,14 @@ class Exception extends Error {
     }
 }
 exports.Exception = Exception;
+// DERIVED ERROR CLASSESS
+// ================================================================================================
+class TooBusyError extends Exception {
+    constructor(message) {
+        super(message || 'The server is too busy', util_1.HttpStatusCode.ServiceUnavailable);
+    }
+}
+exports.TooBusyError = TooBusyError;
 // PUBLIC FUNCTIONS
 // ================================================================================================
 function wrapMessage(error, message) {

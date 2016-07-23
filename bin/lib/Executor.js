@@ -99,39 +99,39 @@ function validateContext(context, options) {
         throw new Error('Cannot create an Executor: context is undefined');
     // authenticator
     if (!context.authenticator)
-        throw new Error('Cannot create an Executor: Authentiator is undefined');
+        throw new Error('Cannot create an Executor: Authenticator is undefined');
     if (typeof context.authenticator !== 'function')
-        throw new Error('Cannot create an Executor: Authenticator is invalid');
+        throw new TypeError('Cannot create an Executor: Authenticator is invalid');
     // database
     if (!context.database)
         throw new Error('Cannot create an Executor: Database is undefined');
     if (typeof context.database.connect !== 'function')
-        throw new Error('Cannot create an Executor: Database is invalid');
+        throw new TypeError('Cannot create an Executor: Database is invalid');
     // cache
     if (!context.cache)
         throw new Error('Cannot create an Executor: Cannot create an Executor: Cache is undefined');
     if (typeof context.cache.get !== 'function')
-        throw new Error('Cannot create an Executor: Cache is invalid');
+        throw new TypeError('Cannot create an Executor: Cache is invalid');
     if (typeof context.cache.set !== 'function')
-        throw new Error('Cannot create an Executor: Cache is invalid');
+        throw new TypeError('Cannot create an Executor: Cache is invalid');
     if (typeof context.cache.execute !== 'function')
-        throw new Error('Cannot create an Executor: Cache is invalid');
+        throw new TypeError('Cannot create an Executor: Cache is invalid');
     if (typeof context.cache.clear !== 'function')
-        throw new Error('Cannot create an Executor: Cache is invalid');
+        throw new TypeError('Cannot create an Executor: Cache is invalid');
     // dispatcher
     if (!context.dispatcher)
         throw new Error('Cannot create an Executor: Dispatcher is undefined');
     if (typeof context.dispatcher.dispatch !== 'function')
-        throw new Error('Cannot create an Executor: Dispatcher is invalid');
+        throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
     // notifier
     if (!context.notifier)
         throw new Error('Cannot create an Executor: Notifier is undefined');
     if (typeof context.notifier.send !== 'function')
-        throw new Error('Cannot create an Executor: Notifier is invalid');
+        throw new TypeError('Cannot create an Executor: Notifier is invalid');
     // rate limiter
     if (context.limiter) {
         if (typeof context.limiter.try !== 'function')
-            throw new Error('Cannot create an Executor: Rate Limiter is invalid');
+            throw new TypeError('Cannot create an Executor: Rate Limiter is invalid');
     }
     else {
         if (options && options.rateOptions)
@@ -139,31 +139,31 @@ function validateContext(context, options) {
     }
     if (context.logger) {
         if (typeof context.logger.debug !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.info !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.warn !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.error !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.log !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.track !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
         if (typeof context.logger.trace !== 'function')
-            throw new Error('Cannot create an Executor: Logger is invalid');
+            throw new TypeError('Cannot create an Executor: Logger is invalid');
     }
 }
 function validateAction(value) {
     if (!value)
         throw new Error('Cannot create an Executor: Action is undefined');
     if (typeof value !== 'function')
-        throw new Error('Cannot create an Executor: Action is not a function');
+        throw new TypeError('Cannot create an Executor: Action is not a function');
 }
 exports.validateAction = validateAction;
 function validateAdapter(value) {
     if (typeof value !== 'function')
-        throw new Error('Cannot create an Executor: Adapter is not a function');
+        throw new TypeError('Cannot create an Executor: Adapter is not a function');
 }
 exports.validateAdapter = validateAdapter;
 //# sourceMappingURL=Executor.js.map

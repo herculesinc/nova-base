@@ -17,4 +17,5 @@ var validator_1 = require('./lib/validator');
 exports.validate = validator_1.validate;
 var errors_2 = require('./lib/errors');
 exports.Exception = errors_2.Exception;
+exports.TooBusyError = errors_2.TooBusyError;
 //# sourceMappingURL=index.js.map

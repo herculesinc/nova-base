@@ -46,6 +46,9 @@ declare module "nova-base" {
     }
 
     export class Executor<V,T> {
+
+        action: Action<V,T>;
+
         constructor(context: ExecutorContext, action: Action<V,T>, adapter?: ActionAdapter<V>, options?: ExecutionOptions);
         execute(inputs: any, requetor?: AuthInputs | string): Promise<T>;
     }
@@ -178,7 +181,7 @@ declare module "nova-base" {
         ServiceUnavailable  = 503
     }
 
-    // EXCEPTION
+    // ERRORS
     // --------------------------------------------------------------------------------------------
     export interface ExceptionOptions {
         status?     : number;
@@ -199,6 +202,10 @@ declare module "nova-base" {
 
         isClientError: boolean;
         isServerError: boolean; 
+    }
+
+    export class TooBusyError extends Exception {
+        constructor(message?: string);
     }
 
     // VALIDATOR
