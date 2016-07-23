@@ -28,12 +28,7 @@ const noopLogger: Logger = {
 export interface ExecutionOptions {
     authOptions?    : any;
 	daoOptions?     : DaoOptions;
-    rateLimits?     : RateLimits;
-}
-
-export interface RateLimits {
-    local?          : RateOptions;
-    global?         : RateOptions;
+    rateLimits?     : RateOptions;
 }
 
 export interface ExecutorContext {
@@ -43,8 +38,14 @@ export interface ExecutorContext {
     dispatcher      : Dispatcher;
     notifier        : Notifier;
     limiter?        : RateLimiter;
+    rateLimits?     : RateOptions;
     logger?         : Logger;
     settings?       : any;
+}
+
+interface RateLimits {
+    local?          : RateOptions;
+    global?         : RateOptions;
 }
 
 // CLASS DEFINITION
@@ -89,10 +90,17 @@ export class Executor<V,T> {
         this.action         = action;
         this.adapter        = adapter;
 
+        if (context.rateLimits) {
+            this.rateLimits = { global: context.rateLimits };
+        }
+
         if (options) {
-            this.daoOptions     = options.daoOptions;
-            this.rateLimits     = options.rateLimits;
             this.authOptions    = options.authOptions;
+            this.daoOptions     = options.daoOptions;
+
+            if (options.rateLimits){
+                this.rateLimits = Object.assign({}, this.rateLimits, { local: options.rateLimits });
+            }
         }
     }
 

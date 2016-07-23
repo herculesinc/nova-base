@@ -2,18 +2,25 @@
 import { expect } from 'chai';
 import * as sinon from 'sinon';
 
-import { Authenticator, Dao, Database, Cache, Dispatcher,
+import { Authenticator, Dao, Database, Cache, Dispatcher, RateOptions,
          Notifier, RateLimiter, Task, Notice, Logger, AuthInputs } from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
 import { MockDao } from './mocks/Database';
 
+const localRateLimits: RateOptions = {
+    limit   : 10,
+    window  : 250
+};
+
+const globalRateLimits: RateOptions = {
+    limit   : 20,
+    window  : 250
+};
+
 const options: ExecutionOptions = {
     authOptions : { foo: 'bar' },
-    daoOptions  : { startTransaction: true },
-    rateLimits: {
-        global  : { limit: 10, window: 250 }
-    }
+    daoOptions  : { startTransaction: true }
 };
 
 const settings  = { count: 5 };
@@ -71,7 +78,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
             notifier     : this.notifier,
             limiter      : this.limiter,
             logger       : this.logger,
-            settings     : { count: 5 }
+            settings     : { count: 5 },
+            rateLimits   : globalRateLimits
         };
 
         this.task = <Task> {
@@ -189,8 +197,8 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with rateLimits.global arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, options.rateLimits.global ) ).to.be.true;
+            it( 'limiter.try should be called with global rateLimits arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, globalRateLimits ) ).to.be.true;
             } );
 
             it( 'limiter.try should return Promise<Dao>', () => {
@@ -389,16 +397,18 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
                 expect( this.limiter.try.calledOnce ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with rateLimits.global arguments', () => {
-                expect( this.limiter.try.calledWithExactly( 'requestor', options.rateLimits.global ) ).to.be.true;
+            it( 'limiter.try should be called with global rateLimits arguments', () => {
+                expect( this.limiter.try.calledWithExactly( 'requestor', globalRateLimits ) ).to.be.true;
             } );
         } );
 
         describe( 'when using local scope', () => {
             beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateLimits : { local: { limit: 10, window: 250, scope: 1 } } } );
+                tmpOptions = Object.assign( {}, options, { rateLimits : localRateLimits } );
+                const tmpContext = Object.assign({}, this.context);
+                tmpContext.rateLimits = undefined;
 
-                this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                this.executor = new Executor( tmpContext, this.action, this.adapter, tmpOptions );
 
                 this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
             } );
@@ -408,25 +418,29 @@ describe( 'NOVA-BASE -> Executor tests;', () => {
             } );
 
             it( 'limiter.try should be called with rateLimits.local arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, tmpOptions.rateLimits.local ) ).to.be.true;
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits ) ).to.be.true;
             } );
         } );
 
-        describe( 'when using global scope', () => {
+        describe( 'when using global and local scope', () => {
             beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateLimits : { global: { limit: 10, window: 250, scope: 2 } } } );
+                tmpOptions = Object.assign( {}, options, { rateLimits : localRateLimits } );
 
                 this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
 
                 this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
             } );
 
-            it( 'limiter.try should be called once', () => {
-                expect( this.limiter.try.calledOnce ).to.be.true;
+            it( 'limiter.try should be called twice', () => {
+                expect( this.limiter.try.calledTwice ).to.be.true;
             } );
 
-            it( 'limiter.try should be called with rateLimits.global arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, tmpOptions.rateLimits.global ) ).to.be.true;
+            it( 'limiter.try should be called with global rateLimits arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, globalRateLimits ) ).to.be.true;
+            } );
+
+            it( 'limiter.try should be called with local rateLimits arguments', () => {
+                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits ) ).to.be.true;
             } );
         } );
     } );

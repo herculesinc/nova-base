@@ -29,10 +29,8 @@ const context: ExecutorContext = {
 
 const options: ExecutionOptions = {
     daoOptions: { startTransaction: true },
-    rateLimits: {
-        global: { limit: 10, window: 250 }
-    }
-}
+    rateLimits: { limit: 10, window: 250 }
+};
 
 function helloWorldAdapter(this: ActionContext, inputs: any, token: string): Promise<{ name: string, token: string }> {
     return Promise.resolve({

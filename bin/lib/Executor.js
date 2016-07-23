@@ -46,10 +46,15 @@ class Executor {
         this.settings = context.settings;
         this.action = action;
         this.adapter = adapter;
+        if (context.rateLimits) {
+            this.rateLimits = { global: context.rateLimits };
+        }
         if (options) {
-            this.daoOptions = options.daoOptions;
-            this.rateLimits = options.rateLimits;
             this.authOptions = options.authOptions;
+            this.daoOptions = options.daoOptions;
+            if (options.rateLimits) {
+                this.rateLimits = Object.assign({}, this.rateLimits, { local: options.rateLimits });
+            }
         }
     }
     // PUBLIC METHODS

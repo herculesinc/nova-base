@@ -36,7 +36,7 @@ declare module "nova-base" {
     export interface ExecutionOptions {
         authOptions?    : any;
         daoOptions?     : DaoOptions;
-        rateLimits?     : RateLimits;
+        rateLimits?     : RateOptions;
     }
 
     export interface ExecutorContext {
@@ -46,6 +46,7 @@ declare module "nova-base" {
         dispatcher      : Dispatcher;
         notifier        : Notifier;
         limiter?        : RateLimiter;
+        rateLimits?     : RateOptions;
         logger?         : Logger; 
         settings?       : any;
     }
@@ -143,11 +144,6 @@ declare module "nova-base" {
     export interface RateOptions {
         window  : number;
         limit   : number;
-    }
-
-    export interface RateLimits {
-        local?  : RateOptions;
-        global? : RateOptions;
     }
 
     // LOGGER
