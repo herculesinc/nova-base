@@ -8,12 +8,15 @@ class Exception extends Error {
     constructor(messageOrOptions, status) {
         if (typeof messageOrOptions === 'string') {
             super(messageOrOptions);
-            this.status = status || util_1.HttpStatusCode.InternalServerError;
+            this.status = (typeof status !== 'number' || status < 400 || status > 599)
+                ? util_1.HttpStatusCode.InternalServerError : status;
             Error.captureStackTrace(this, this.constructor);
         }
         else {
             super(messageOrOptions.message);
-            this.status = messageOrOptions.status || util_1.HttpStatusCode.InternalServerError;
+            status = messageOrOptions.status;
+            this.status = (typeof status !== 'number' || status < 400 || status > 599)
+                ? util_1.HttpStatusCode.InternalServerError : status;
             this.code = messageOrOptions.code;
             this.cause = messageOrOptions.cause;
             if (this.cause) {
@@ -50,6 +53,19 @@ class TooBusyError extends Exception {
     }
 }
 exports.TooBusyError = TooBusyError;
+class InvalidEndpointError extends Exception {
+    constructor(path) {
+        super(`Endpoint for ${path} does not exist`, util_1.HttpStatusCode.NotFound);
+        this.name = 'Invalid Endpoint';
+    }
+}
+exports.InvalidEndpointError = InvalidEndpointError;
+class UnsupportedMethodError extends Exception {
+    constructor(method, path) {
+        super(`Method ${method} is not supported for ${path} endpoint`, util_1.HttpStatusCode.NotAllowed);
+    }
+}
+exports.UnsupportedMethodError = UnsupportedMethodError;
 // PUBLIC FUNCTIONS
 // ================================================================================================
 function wrapMessage(error, message) {

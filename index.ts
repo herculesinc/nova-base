@@ -124,4 +124,4 @@ export const util = {
 // =================================================================================================
 export { Executor } from './lib/Executor';
 export { validate } from './lib/validator';
-export { Exception, TooBusyError } from './lib/errors';
+export { Exception, TooBusyError, InvalidEndpointError, UnsupportedMethodError } from './lib/errors';

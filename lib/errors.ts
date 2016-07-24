@@ -17,6 +17,7 @@ export interface ExceptionOptions {
 export class Exception extends Error {
     name    : string;
     status  : number;
+    headers?: { [index: string]: string };
     code?   : number;
     cause?  : Error;
 
@@ -27,12 +28,15 @@ export class Exception extends Error {
     constructor(messageOrOptions: string | ExceptionOptions, status?: number) {
         if (typeof messageOrOptions === 'string') {
             super(messageOrOptions);
-            this.status = status || HttpStatusCode.InternalServerError;
+            this.status = (typeof status !== 'number' || status < 400 || status > 599)
+                ? HttpStatusCode.InternalServerError : status;
             Error.captureStackTrace(this, this.constructor);
         }
         else {
             super(messageOrOptions.message);
-            this.status = messageOrOptions.status || HttpStatusCode.InternalServerError;
+            status = messageOrOptions.status;
+            this.status = (typeof status !== 'number' || status < 400 || status > 599)
+                ? HttpStatusCode.InternalServerError : status;
             this.code = messageOrOptions.code;
             this.cause = messageOrOptions.cause;
 
@@ -75,6 +79,18 @@ export class TooBusyError extends Exception {
     }
 }
 
+export class InvalidEndpointError extends Exception {
+    constructor(path: string) {
+        super(`Endpoint for ${path} does not exist`, HttpStatusCode.NotFound);
+        this.name = 'Invalid Endpoint';
+    }
+}
+
+export class UnsupportedMethodError extends Exception {
+    constructor(method: string, path: string) {
+        super(`Method ${method} is not supported for ${path} endpoint`, HttpStatusCode.NotAllowed);
+    }
+}
 
 // PUBLIC FUNCTIONS
 // ================================================================================================

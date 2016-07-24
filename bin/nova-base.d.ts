@@ -197,6 +197,7 @@ declare module "nova-base" {
     export class Exception extends Error {
         name    : string;
         status  : number;
+        headers?: { [index: string]: string };
         code?   : number;
         cause?  : Error;
 
@@ -209,6 +210,14 @@ declare module "nova-base" {
 
     export class TooBusyError extends Exception {
         constructor(message?: string);
+    }
+
+    export class InvalidEndpointError extends Exception {
+        constructor(path: string);
+    }
+
+    export class UnsupportedMethodError extends Exception {
+        constructor(method: string, path: string);
     }
 
     // VALIDATOR
