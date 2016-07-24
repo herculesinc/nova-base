@@ -1,17 +1,18 @@
 "use strict";
+const validator_1 = require('./validator');
 const util_1 = require('./util');
 // ACTION CONTEXT
 // =================================================================================================
 class ActionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao, cache, logger, settings) {
+    constructor(dao, cache, logger, settings, tasks, notices) {
         this.dao = dao;
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
-        this.tasks = [];
-        this.notices = [];
+        this.tasks = tasks ? [] : undefined;
+        this.notices = notices ? [] : undefined;
         this.keys = new Set();
     }
     register(taskOrNotice) {
@@ -40,6 +41,7 @@ class ActionContext {
     registerTask(task) {
         if (!task.queue)
             return;
+        validator_1.validate(this.tasks, 'Cannot register task: dispatcher is not available');
         let hasHoles = false;
         for (let i = 0; i < this.tasks.length; i++) {
             if (this.tasks[i].queue === task.queue) {
@@ -59,6 +61,7 @@ class ActionContext {
     registerNotice(notice) {
         if (!notice.target)
             return;
+        validator_1.validate(this.notices, 'Cannot register notice: notifier is not available');
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
             if (this.notices[i].target === notice.target) {
@@ -78,6 +81,7 @@ class ActionContext {
     clearNotices(filter) {
         if (!filter || (!filter.event && !filter.target))
             return;
+        validator_1.validate(this.notices, 'Cannot clear notices: notifier is not available');
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
             let notice = this.notices[i];

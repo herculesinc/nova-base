@@ -40,11 +40,11 @@ declare module "nova-base" {
     }
 
     export interface ExecutorContext {
-        authenticator   : Authenticator;
+        authenticator?  : Authenticator;
         database        : Database;
-        cache           : Cache;
-        dispatcher      : Dispatcher;
-        notifier        : Notifier;
+        cache?          : Cache;
+        dispatcher?     : Dispatcher;
+        notifier?       : Notifier;
         limiter?        : RateLimiter;
         rateLimits?     : RateOptions;
         logger?         : Logger; 

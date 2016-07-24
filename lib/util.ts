@@ -32,6 +32,7 @@ export enum HttpStatusCode {
     NotFound            = 404,
     NotAllowed          = 405,
     NotAcceptable       = 406,
+    PayloadTooLarge     = 413,
     UnsupportedContent  = 415,
     NotReady            = 425,
     TooManyRequests     = 429,
@@ -52,6 +53,7 @@ export const HttpCodeNames = new Map([
     [ 404, 'Not Found' ],
     [ 405, 'Method Not Allowed' ],
     [ 406, 'Not Acceptable' ],
+    [ 413, 'Payload Too Large' ],
     [ 415, 'Unsupported Media Type' ],
     [ 425, 'Not Ready' ],
     [ 429, 'Too Many Requests' ],
@@ -59,3 +61,7 @@ export const HttpCodeNames = new Map([
     [ 501, 'Not Implemented' ],
     [ 503, 'Service Unavailable' ],
 ]);
+
+// DUMMY FUNCTIONS
+// ================================================================================================
+export function noop() {};

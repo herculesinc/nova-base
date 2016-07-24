@@ -5,23 +5,9 @@ import {
     RateLimiter, RateOptions
 } from './../index';
 import { Action, ActionContext, ActionAdapter } from './Action';
-import { wrapMessage } from './errors';
-import { since } from './util';
-
-// MODULE VARIABLES
-// =================================================================================================
-function noop() {};
-
-const noopLogger: Logger = {
-    debug   : noop,
-    info    : noop,
-    warn    : noop,
-    error   : noop,
-    log     : noop,
-    track   : noop,
-    trace   : noop,
-    request : noop
-};
+import { Exception, wrapMessage } from './errors';
+import { validate } from './validator';
+import { since, noop } from './util';
 
 // INTERFACES
 // ================================================================================================
@@ -32,11 +18,11 @@ export interface ExecutionOptions {
 }
 
 export interface ExecutorContext {
-    authenticator   : Authenticator;
+    authenticator?  : Authenticator;
     database        : Database;
-    cache           : Cache;
-    dispatcher      : Dispatcher;
-    notifier        : Notifier;
+    cache?          : Cache;
+    dispatcher?     : Dispatcher;
+    notifier?       : Notifier;
     limiter?        : RateLimiter;
     rateLimits?     : RateOptions;
     logger?         : Logger;
@@ -52,11 +38,11 @@ interface RateLimits {
 // ================================================================================================
 export class Executor<V,T> {
 
-    authenticator   : Authenticator;
+    authenticator?  : Authenticator;
     database        : Database;
     cache           : Cache;
-    dispatcher      : Dispatcher;
-    notifier        : Notifier;
+    dispatcher?     : Dispatcher;
+    notifier?       : Notifier;
     limiter?        : RateLimiter;
     logger          : Logger;
     settings?       : any;
@@ -80,7 +66,7 @@ export class Executor<V,T> {
         // initialize instance variables
         this.authenticator  = context.authenticator;
         this.database       = context.database;
-        this.cache          = context.cache;
+        this.cache          = context.cache || errCache;
         this.dispatcher     = context.dispatcher;
         this.notifier       = context.notifier;
         this.limiter        = context.limiter;
@@ -131,8 +117,9 @@ export class Executor<V,T> {
 
             // open database connection, create context, and authenticate action if needed
             dao = await this.database.connect(this.daoOptions);
-            const context = new ActionContext(dao, this.cache, this.logger, this.settings);
+            const context = new ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
             if (typeof requestor !== 'string') {
+                validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
                 authInfo = await this.authenticator.call(context, requestor, this.authOptions);
             }
 
@@ -172,37 +159,44 @@ export class Executor<V,T> {
 // ================================================================================================
 function validateContext(context: ExecutorContext, options: ExecutionOptions) {
 
-    if (!context) throw new Error('Cannot create an Executor: context is undefined');
+    if (!context) throw new TypeError('Cannot create an Executor: context is undefined');
 
     // authenticator
-    if (!context.authenticator) throw new Error('Cannot create an Executor: Authenticator is undefined');
-    if (typeof context.authenticator !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
-
+    if (context.authenticator) {
+        if (typeof context.authenticator !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+    }
+    else {
+        if (options && options.authOptions) throw new TypeError('Cannot create an Executor: Authenticator was not provided');
+    }
+    
     // database
-    if (!context.database) throw new Error('Cannot create an Executor: Database is undefined');
+    if (!context.database) throw new TypeError('Cannot create an Executor: Database is undefined');
     if (typeof context.database.connect !== 'function') throw new TypeError('Cannot create an Executor: Database is invalid');
 
     // cache
-    if (!context.cache) throw new Error('Cannot create an Executor: Cannot create an Executor: Cache is undefined');
-    if (typeof context.cache.get !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.set !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.execute !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.clear !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
+    if (context.cache) {
+        if (typeof context.cache.get !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.set !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.execute !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.clear !== 'function') throw new TypeError('Cannot create an Executor: Cache is invalid');
+    }
 
     // dispatcher
-    if (!context.dispatcher) throw new Error('Cannot create an Executor: Dispatcher is undefined');
-    if (typeof context.dispatcher.dispatch !== 'function') throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+    if (context.dispatcher) {
+        if (typeof context.dispatcher.dispatch !== 'function') throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+    }
 
     // notifier
-    if (!context.notifier) throw new Error('Cannot create an Executor: Notifier is undefined');
-    if (typeof context.notifier.send !== 'function') throw new TypeError('Cannot create an Executor: Notifier is invalid');
+    if (context.notifier) {
+        if (typeof context.notifier.send !== 'function') throw new TypeError('Cannot create an Executor: Notifier is invalid');
+    }
 
     // rate limiter
     if (context.limiter) {
         if (typeof context.limiter.try !== 'function') throw new TypeError('Cannot create an Executor: Rate Limiter is invalid');
     }
     else {
-        if (options && options.rateLimits) throw new Error('Cannot create an Executor: Rate Limiter was not provided')
+        if (options && options.rateLimits) throw new TypeError('Cannot create an Executor: Rate Limiter was not provided');
     }
 
     if (context.logger) {
@@ -217,10 +211,38 @@ function validateContext(context: ExecutorContext, options: ExecutionOptions) {
 }
 
 export function validateAction(value: any) {
-    if (!value) throw new Error('Cannot create an Executor: Action is undefined');
+    if (!value) throw new TypeError('Cannot create an Executor: Action is undefined');
     if (typeof value !== 'function') throw new TypeError('Cannot create an Executor: Action is not a function');
 }
 
 export function validateAdapter(value: any) {
     if (typeof value !== 'function') throw new TypeError('Cannot create an Executor: Adapter is not a function');
 }
+
+// DUMMY COMPONENTS
+// =================================================================================================
+const noopLogger: Logger = {
+    debug   : noop,
+    info    : noop,
+    warn    : noop,
+    error   : noop,
+    log     : noop,
+    track   : noop,
+    trace   : noop,
+    request : noop
+};
+
+const errCache: Cache = {
+    get(keyOrKeys: string | string[]): Promise<any> { 
+        throw new Exception(`Cannot use cache: cache hasn't been initialized`); 
+    },
+    set(key: string, value: any, expires?: number) { 
+        throw new Exception(`Cannot use cache: cache hasn't been initialized`);
+    },
+    execute(script: string, keys: string[], parameters: any[]): Promise<any> {
+        throw new Exception(`Cannot use cache: cache hasn't been initialized`);
+    },
+    clear(keyOrKeys: string | string[]) {
+        throw new Exception(`Cannot use cache: cache hasn't been initialized`);
+    }
+};

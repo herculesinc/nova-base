@@ -1,6 +1,7 @@
 // IMPORTS
 // =================================================================================================
 import { Dao, Cache, Logger, Notice, NoticeFilter, Task } from './../index';
+import { validate } from './validator';
 import { clean } from './util';
 
 // INTERFACES
@@ -28,14 +29,14 @@ export class ActionContext {
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao: Dao, cache: Cache, logger: Logger, settings: any) {
+    constructor(dao: Dao, cache: Cache, logger: Logger, settings: any, tasks: boolean, notices: boolean) {
         this.dao = dao;
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
         
-        this.tasks = [];
-        this.notices = [];
+        this.tasks = tasks ? [] : undefined;
+        this.notices = notices ? [] : undefined;
         this.keys = new Set();
     }
     
@@ -71,7 +72,8 @@ export class ActionContext {
     // --------------------------------------------------------------------------------------------
     private registerTask(task: Task) {
         if (!task.queue) return;
-        
+        validate(this.tasks, 'Cannot register task: dispatcher is not available');
+
         let hasHoles = false;
         for (let i = 0; i < this.tasks.length; i++) {
             if (this.tasks[i].queue === task.queue) {
@@ -92,7 +94,8 @@ export class ActionContext {
     
     private registerNotice(notice: Notice) {
         if (!notice.target) return;
-        
+        validate(this.notices, 'Cannot register notice: notifier is not available');
+
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {
             if (this.notices[i].target === notice.target) {
@@ -113,6 +116,7 @@ export class ActionContext {
 
     private clearNotices(filter: NoticeFilter) {
         if (!filter || (!filter.event && !filter.target)) return;
+        validate(this.notices, 'Cannot clear notices: notifier is not available');
 
         let hasHoles = false;
         for (let i = 0; i < this.notices.length; i++) {

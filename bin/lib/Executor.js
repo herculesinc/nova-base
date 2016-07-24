@@ -9,21 +9,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 const Action_1 = require('./Action');
 const errors_1 = require('./errors');
+const validator_1 = require('./validator');
 const util_1 = require('./util');
-// MODULE VARIABLES
-// =================================================================================================
-function noop() { }
-;
-const noopLogger = {
-    debug: noop,
-    info: noop,
-    warn: noop,
-    error: noop,
-    log: noop,
-    track: noop,
-    trace: noop,
-    request: noop
-};
 // CLASS DEFINITION
 // ================================================================================================
 class Executor {
@@ -38,7 +25,7 @@ class Executor {
         // initialize instance variables
         this.authenticator = context.authenticator;
         this.database = context.database;
-        this.cache = context.cache;
+        this.cache = context.cache || errCache;
         this.dispatcher = context.dispatcher;
         this.notifier = context.notifier;
         this.limiter = context.limiter;
@@ -79,8 +66,9 @@ class Executor {
                 }
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
-                const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings);
+                const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
                 if (typeof requestor !== 'string') {
+                    validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
                     authInfo = yield this.authenticator.call(context, requestor, this.authOptions);
                 }
                 // execute action and release database connection
@@ -116,38 +104,42 @@ exports.Executor = Executor;
 // ================================================================================================
 function validateContext(context, options) {
     if (!context)
-        throw new Error('Cannot create an Executor: context is undefined');
+        throw new TypeError('Cannot create an Executor: context is undefined');
     // authenticator
-    if (!context.authenticator)
-        throw new Error('Cannot create an Executor: Authenticator is undefined');
-    if (typeof context.authenticator !== 'function')
-        throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+    if (context.authenticator) {
+        if (typeof context.authenticator !== 'function')
+            throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+    }
+    else {
+        if (options && options.authOptions)
+            throw new TypeError('Cannot create an Executor: Authenticator was not provided');
+    }
     // database
     if (!context.database)
-        throw new Error('Cannot create an Executor: Database is undefined');
+        throw new TypeError('Cannot create an Executor: Database is undefined');
     if (typeof context.database.connect !== 'function')
         throw new TypeError('Cannot create an Executor: Database is invalid');
     // cache
-    if (!context.cache)
-        throw new Error('Cannot create an Executor: Cannot create an Executor: Cache is undefined');
-    if (typeof context.cache.get !== 'function')
-        throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.set !== 'function')
-        throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.execute !== 'function')
-        throw new TypeError('Cannot create an Executor: Cache is invalid');
-    if (typeof context.cache.clear !== 'function')
-        throw new TypeError('Cannot create an Executor: Cache is invalid');
+    if (context.cache) {
+        if (typeof context.cache.get !== 'function')
+            throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.set !== 'function')
+            throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.execute !== 'function')
+            throw new TypeError('Cannot create an Executor: Cache is invalid');
+        if (typeof context.cache.clear !== 'function')
+            throw new TypeError('Cannot create an Executor: Cache is invalid');
+    }
     // dispatcher
-    if (!context.dispatcher)
-        throw new Error('Cannot create an Executor: Dispatcher is undefined');
-    if (typeof context.dispatcher.dispatch !== 'function')
-        throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+    if (context.dispatcher) {
+        if (typeof context.dispatcher.dispatch !== 'function')
+            throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+    }
     // notifier
-    if (!context.notifier)
-        throw new Error('Cannot create an Executor: Notifier is undefined');
-    if (typeof context.notifier.send !== 'function')
-        throw new TypeError('Cannot create an Executor: Notifier is invalid');
+    if (context.notifier) {
+        if (typeof context.notifier.send !== 'function')
+            throw new TypeError('Cannot create an Executor: Notifier is invalid');
+    }
     // rate limiter
     if (context.limiter) {
         if (typeof context.limiter.try !== 'function')
@@ -155,7 +147,7 @@ function validateContext(context, options) {
     }
     else {
         if (options && options.rateLimits)
-            throw new Error('Cannot create an Executor: Rate Limiter was not provided');
+            throw new TypeError('Cannot create an Executor: Rate Limiter was not provided');
     }
     if (context.logger) {
         if (typeof context.logger.debug !== 'function')
@@ -176,7 +168,7 @@ function validateContext(context, options) {
 }
 function validateAction(value) {
     if (!value)
-        throw new Error('Cannot create an Executor: Action is undefined');
+        throw new TypeError('Cannot create an Executor: Action is undefined');
     if (typeof value !== 'function')
         throw new TypeError('Cannot create an Executor: Action is not a function');
 }
@@ -186,4 +178,30 @@ function validateAdapter(value) {
         throw new TypeError('Cannot create an Executor: Adapter is not a function');
 }
 exports.validateAdapter = validateAdapter;
+// DUMMY COMPONENTS
+// =================================================================================================
+const noopLogger = {
+    debug: util_1.noop,
+    info: util_1.noop,
+    warn: util_1.noop,
+    error: util_1.noop,
+    log: util_1.noop,
+    track: util_1.noop,
+    trace: util_1.noop,
+    request: util_1.noop
+};
+const errCache = {
+    get(keyOrKeys) {
+        throw new errors_1.Exception(`Cannot use cache: cache hasn't been initialized`);
+    },
+    set(key, value, expires) {
+        throw new errors_1.Exception(`Cannot use cache: cache hasn't been initialized`);
+    },
+    execute(script, keys, parameters) {
+        throw new errors_1.Exception(`Cannot use cache: cache hasn't been initialized`);
+    },
+    clear(keyOrKeys) {
+        throw new errors_1.Exception(`Cannot use cache: cache hasn't been initialized`);
+    }
+};
 //# sourceMappingURL=Executor.js.map

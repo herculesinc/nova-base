@@ -34,6 +34,7 @@ exports.clean = clean;
     HttpStatusCode[HttpStatusCode["NotFound"] = 404] = "NotFound";
     HttpStatusCode[HttpStatusCode["NotAllowed"] = 405] = "NotAllowed";
     HttpStatusCode[HttpStatusCode["NotAcceptable"] = 406] = "NotAcceptable";
+    HttpStatusCode[HttpStatusCode["PayloadTooLarge"] = 413] = "PayloadTooLarge";
     HttpStatusCode[HttpStatusCode["UnsupportedContent"] = 415] = "UnsupportedContent";
     HttpStatusCode[HttpStatusCode["NotReady"] = 425] = "NotReady";
     HttpStatusCode[HttpStatusCode["TooManyRequests"] = 429] = "TooManyRequests";
@@ -54,6 +55,7 @@ exports.HttpCodeNames = new Map([
     [404, 'Not Found'],
     [405, 'Method Not Allowed'],
     [406, 'Not Acceptable'],
+    [413, 'Payload Too Large'],
     [415, 'Unsupported Media Type'],
     [425, 'Not Ready'],
     [429, 'Too Many Requests'],
@@ -61,4 +63,9 @@ exports.HttpCodeNames = new Map([
     [501, 'Not Implemented'],
     [503, 'Service Unavailable'],
 ]);
+// DUMMY FUNCTIONS
+// ================================================================================================
+function noop() { }
+exports.noop = noop;
+;
 //# sourceMappingURL=util.js.map
