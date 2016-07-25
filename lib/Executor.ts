@@ -134,8 +134,8 @@ export class Executor<V,T> {
             }
 
             // send out tasks and notices
-            const taskPromise = this.dispatcher.dispatch(context.tasks);
-            const noticePromise = this.notifier.send(context.notices);
+            const taskPromise = (this.dispatcher) ? this.dispatcher.dispatch(context.tasks) : undefined;
+            const noticePromise = (this.notifier) ? this.notifier.send(context.notices) : undefined;
             await Promise.all([taskPromise, noticePromise]);
 
             // log executiong time and return the result

@@ -80,8 +80,8 @@ class Executor {
                     this.cache.clear(Array.from(context.keys));
                 }
                 // send out tasks and notices
-                const taskPromise = this.dispatcher.dispatch(context.tasks);
-                const noticePromise = this.notifier.send(context.notices);
+                const taskPromise = (this.dispatcher) ? this.dispatcher.dispatch(context.tasks) : undefined;
+                const noticePromise = (this.notifier) ? this.notifier.send(context.notices) : undefined;
                 yield Promise.all([taskPromise, noticePromise]);
                 // log executiong time and return the result
                 this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
