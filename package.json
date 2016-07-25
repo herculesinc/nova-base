@@ -1,6 +1,6 @@
 {
   "name": "nova-base",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Foundation for Nova API framework",
   "keywords": [
     "nova",
@@ -11,7 +11,7 @@
     "setup": "npm install && typings install"
   },
   "main": "index.js",
-  "types": "nova-base.d.ts",
+  "typings": "nova-base.d.ts",
   "license": "MIT",
   "author": {
     "name": "Credo360, Inc.",
