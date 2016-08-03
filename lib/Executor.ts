@@ -130,13 +130,9 @@ export class Executor<V,T> {
                 result = await this.action.call(context, inputs);
             }
             catch (error) {
-                // check if the error allows for the action to be completed
-                if (error instanceof Exception && (error as Exception).allowCommit) {
-                    result = error;
-                }
-                else {
-                    throw error;
-                }
+                // if the error allows for the execution to be completed, don't throw it now
+                if (!(error instanceof Exception) || !(error as Exception).allowCommit) throw error;
+                result = error;
             }
             await dao.release(dao.inTransaction ? 'commit' : undefined);
 
@@ -163,8 +159,10 @@ export class Executor<V,T> {
                 await dao.release(dao.inTransaction ? 'rollback' : undefined);
             }
 
-            // update the error message, and rethrow the error
-            error = wrapMessage(error, `Failed to execute ${this.action.name} action`);
+            // update the error message (if needed), and rethrow the error
+            if (!(error instanceof Exception) || !(error as Exception).allowCommit) {
+                error = wrapMessage(error, `Failed to execute ${this.action.name} action`);
+            }
             return Promise.reject<any>(error);
         }
     }

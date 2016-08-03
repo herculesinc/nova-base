@@ -78,13 +78,10 @@ class Executor {
                     result = yield this.action.call(context, inputs);
                 }
                 catch (error) {
-                    // check if the error allows for the action to be completed
-                    if (error instanceof errors_1.Exception && error.allowCommit) {
-                        result = error;
-                    }
-                    else {
+                    // if the error allows for the execution to be completed, don't throw it now
+                    if (!(error instanceof errors_1.Exception) || !error.allowCommit)
                         throw error;
-                    }
+                    result = error;
                 }
                 yield dao.release(dao.inTransaction ? 'commit' : undefined);
                 // invalidate cache items
@@ -107,8 +104,10 @@ class Executor {
                 if (dao && dao.isActive) {
                     yield dao.release(dao.inTransaction ? 'rollback' : undefined);
                 }
-                // update the error message, and rethrow the error
-                error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
+                // update the error message (if needed), and rethrow the error
+                if (!(error instanceof errors_1.Exception) || !error.allowCommit) {
+                    error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
+                }
                 return Promise.reject(error);
             }
         });
