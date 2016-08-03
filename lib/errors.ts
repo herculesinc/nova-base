@@ -10,16 +10,18 @@ export interface ExceptionOptions {
     code?       : number;
     cause?      : Error;
     stackStart? : Function;
+    allowCommit?: boolean;
 }
 
 // BASE EXCEPTION CLASS
 // ================================================================================================
 export class Exception extends Error {
-    name    : string;
-    status  : number;
-    headers?: { [index: string]: string };
-    code?   : number;
-    cause?  : Error;
+    name        : string;
+    status      : number;
+    headers?    : { [index: string]: string };
+    code?       : number;
+    cause?      : Error;
+    allowCommit : boolean;
 
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
@@ -31,6 +33,7 @@ export class Exception extends Error {
             this.status = (typeof status !== 'number' || status < 400 || status > 599)
                 ? HttpStatusCode.InternalServerError : status;
             Error.captureStackTrace(this, this.constructor);
+            this.allowCommit = false;
         }
         else {
             super(messageOrOptions.message);
@@ -47,6 +50,7 @@ export class Exception extends Error {
             }
 
             Error.captureStackTrace(this, messageOrOptions.stackStart || this.constructor);
+            this.allowCommit = messageOrOptions.allowCommit || false;
         }
 
         this.name = HttpCodeNames.get(this.status) || 'Unknown Error';

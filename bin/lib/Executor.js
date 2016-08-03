@@ -73,7 +73,19 @@ class Executor {
                 }
                 // execute action and release database connection
                 inputs = this.adapter ? yield this.adapter.call(context, inputs, authInfo) : inputs;
-                const result = yield this.action.call(context, inputs);
+                let result;
+                try {
+                    result = yield this.action.call(context, inputs);
+                }
+                catch (error) {
+                    // check if the error allows for the action to be completed
+                    if (error instanceof errors_1.Exception && error.allowCommit) {
+                        result = error;
+                    }
+                    else {
+                        throw error;
+                    }
+                }
                 yield dao.release(dao.inTransaction ? 'commit' : undefined);
                 // invalidate cache items
                 if (context.keys.size > 0) {
@@ -85,6 +97,9 @@ class Executor {
                 yield Promise.all([taskPromise, noticePromise]);
                 // log executiong time and return the result
                 this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
+                // if result is not an error, return it
+                if (result instanceof Error)
+                    throw result;
                 return result;
             }
             catch (error) {

@@ -125,7 +125,19 @@ export class Executor<V,T> {
 
             // execute action and release database connection
             inputs = this.adapter ? await this.adapter.call(context, inputs, authInfo) : inputs;
-            const result: T = await this.action.call(context, inputs);
+            let result: T | Error;
+            try {
+                result = await this.action.call(context, inputs);
+            }
+            catch (error) {
+                // check if the error allows for the action to be completed
+                if (error instanceof Exception && (error as Exception).allowCommit) {
+                    result = error;
+                }
+                else {
+                    throw error;
+                }
+            }
             await dao.release(dao.inTransaction ? 'commit' : undefined);
 
             // invalidate cache items
@@ -140,6 +152,9 @@ export class Executor<V,T> {
 
             // log executiong time and return the result
             this.logger.log(`Executed ${this.action.name} action`, { time: since(start) });
+
+            // if result is not an error, return it
+            if (result instanceof Error) throw result;
             return result;
         }
         catch (error) {
