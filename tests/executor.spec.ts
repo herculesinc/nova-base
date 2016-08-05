@@ -2,628 +2,647 @@
 import { expect } from 'chai';
 import * as sinon from 'sinon';
 
-import { Authenticator, Dao, Database, Cache, Dispatcher, RateOptions,
-         Notifier, RateLimiter, Task, Notice, Logger, AuthInputs } from './../index';
+import {
+    Authenticator, Dao, Database, Cache, Dispatcher, RateOptions, Notifier, RateLimiter, Task, Notice, Logger,
+    AuthInputs
+} from './../index';
 import { Executor, ExecutorContext, ExecutionOptions } from './../lib/Executor';
 import { ActionContext } from './../lib/Action';
 import { MockDao } from './mocks/Database';
 
 const localRateLimits: RateOptions = {
-    limit   : 10,
-    window  : 250
+    limit : 10,
+    window: 250
 };
 
 const globalRateLimits: RateOptions = {
-    limit   : 20,
-    window  : 250
+    limit : 20,
+    window: 250
 };
 
 const options: ExecutionOptions = {
-    authOptions : { foo: 'bar' },
-    daoOptions  : { startTransaction: true }
+    authOptions: { foo: 'bar' },
+    daoOptions : { startTransaction: true }
 };
 
-const settings  = { count: 5 };
-const requestor = { scheme: 'token', credentials: 'testtoken1' };
-const inputs    = { firstName: 'John', lastName: 'Smith' };
+const authenticatorResult: string = 'authenticator_result';
+const adapterResult: string = 'adapter_result';
+const actionResult: string = 'action_result';
 
-let tmpOptions;
+const requestor = {
+    scheme     : 'token',
+    credentials: 'testtoken1'
+};
+const inputs = {
+    firstName: 'John',
+    lastName : 'Smith'
+};
 
-describe( 'NOVA-BASE -> Executor tests;', () => {
+let authenticator: Authenticator;
+let dao: Dao;
+let database: Database;
+let cache: Cache;
+let dispatcher: Dispatcher;
+let notifier: Notifier;
+let limiter: RateLimiter;
+let logger: Logger;
+let context: ExecutorContext;
+let task: Task;
+let notice: Notice;
+let adapter: any;
+let action: any;
+let executor: Executor<any,any>;
 
-    beforeEach( done => {
-        const self = this;
+let tmpOptions: ExecutionOptions;
 
-        this.authenticatorResult = 'authenticator_result';
-        this.adapterResult       = 'adapter_result';
-        this.actionResult        = 'action_result';
+describe('NOVA-BASE -> Executor tests;', () => {
 
-        this.authenticator = <Authenticator> sinon.stub();
+    beforeEach(done => {
+        authenticator = sinon.stub();
+        dao = new MockDao(options.daoOptions);
 
-        this.dao = <Dao> new MockDao( options.daoOptions );
-
-        sinon.spy( this.dao, 'release' );
-
-        this.database = <Database> {
-            connect: sinon.stub().returns( Promise.resolve( this.dao ) )
+        database = {
+            connect: sinon.stub().returns(Promise.resolve(dao))
         };
 
-        this.cache = <Cache> {
-            get    : sinon.stub().returns( Promise.resolve() ),
+        cache = {
+            get    : sinon.stub().returns(Promise.resolve()),
             set    : sinon.stub(),
-            execute: sinon.stub().returns( Promise.resolve() ),
+            execute: sinon.stub().returns(Promise.resolve()),
             clear  : sinon.stub()
-        }
-
-        this.dispatcher = <Dispatcher> { dispatch: sinon.stub() };
-        this.notifier   = <Notifier> { send: sinon.stub() };
-        this.limiter    = <RateLimiter> { try: sinon.stub() };
-
-        this.logger = <Logger> {
-            debug   : sinon.spy(),
-            log     : sinon.spy(),
-            info    : sinon.spy(),
-            warn    : sinon.spy(),
-            error   : sinon.spy(),
-            track   : sinon.spy(),
-            trace   : sinon.spy(),
-            request : sinon.spy()
         };
 
-        this.context = <ExecutorContext> {
-            authenticator: this.authenticator,
-            database     : this.database,
-            cache        : this.cache,
-            dispatcher   : this.dispatcher,
-            notifier     : this.notifier,
-            limiter      : this.limiter,
-            logger       : this.logger,
+        dispatcher = { dispatch: sinon.stub() };
+        notifier = { send: sinon.stub() };
+        limiter = { try: sinon.stub() };
+
+        logger = {
+            debug  : sinon.spy(),
+            log    : sinon.spy(),
+            info   : sinon.spy(),
+            warn   : sinon.spy(),
+            error  : sinon.spy(),
+            track  : sinon.spy(),
+            trace  : sinon.spy(),
+            request: sinon.spy()
+        };
+
+        context = {
+            authenticator: authenticator,
+            database     : database,
+            cache        : cache,
+            dispatcher   : dispatcher,
+            notifier     : notifier,
+            limiter      : limiter,
+            logger       : logger,
             settings     : { count: 5 },
             rateLimits   : globalRateLimits
         };
 
-        this.task = <Task> {
-            queue   : 'task',
-            payload : {},
-            merge   : sinon.stub().returns( this.task )
+        task = {
+            queue  : 'task',
+            payload: {},
+            merge  : sinon.stub().returns(task)
         };
 
-        this.notice = <Notice> {
-            target  : 'target',
-            event   : 'event',
-            payload : {},
-            merge   : sinon.stub().returns( this.notice )
+        notice = {
+            target : 'target',
+            event  : 'event',
+            payload: {},
+            merge  : sinon.stub().returns(notice)
         };
 
-        this.adapter = sinon.stub();
+        adapter = sinon.stub();
 
-        this.action = function action(this: ActionContext, inputs: string): Promise<any> {
+        action = function action(this: ActionContext): Promise<any> {
             // adding task and notice
-            this.register( self.task );
-            this.register( self.notice );
+            this.register(task);
+            this.register(notice);
 
             // adding cache keys
-            this.invalidate( 'key1' );
-            this.invalidate( 'key2' );
+            this.invalidate('key1');
+            this.invalidate('key2');
 
-            return Promise.resolve( self.actionResult );
+            return Promise.resolve(actionResult);
         };
 
-        this.action = sinon.spy( this, 'action' );
+        action = sinon.spy(action);
+
+        sinon.spy(dao, 'release');
 
         done();
-    } );
+    });
 
-    describe( 'authenticator, adapter and action should be called in ActionContext;', () => {
-        it( 'authenticator should be called in ActionContext', done => {
-            this.context.authenticator = function authenticate(inputs: AuthInputs, options: any): Promise<any> {
+    describe('authenticator, adapter and action should be called in ActionContext;', () => {
+        it('authenticator should be called in ActionContext', done => {
+            context.authenticator = function authenticate(inputs: AuthInputs, options: any): Promise<any> {
                 try {
-                    expect( this ).to.be.instanceof( ActionContext );
+                    expect(this).to.be.instanceof(ActionContext);
                     done();
-                } catch ( error ) {
-                    done( error );
+                } catch (error) {
+                    done(error);
                 }
                 return Promise.resolve();
             };
 
-            this.executor = new Executor( this.context, this.action, this.adapter, options );
+            executor = new Executor(context, action, adapter, options);
 
-            this.executor.execute( inputs, requestor ).catch( done );
-        } );
+            executor.execute(inputs, requestor).catch(done);
+        });
 
-        it( 'adapter should be called in ActionContext', done => {
-            this.adapter = function adapter(inputs: any, token: any): Promise<any> {
+        it('adapter should be called in ActionContext', done => {
+            adapter = function adapter(): Promise<any> {
                 try {
-                    expect( this ).to.be.instanceof( ActionContext );
+                    expect(this).to.be.instanceof(ActionContext);
                     done();
-                } catch ( error ) {
-                    done( error );
+                } catch (error) {
+                    done(error);
                 }
                 return Promise.resolve();
             };
 
-            this.executor = new Executor( this.context, this.action, this.adapter, options );
+            executor = new Executor(context, action, adapter, options);
 
-            this.executor.execute( inputs, requestor ).catch( done );
-        } );
+            executor.execute(inputs, requestor).catch(done);
+        });
 
-        it( 'action should be called in ActionContext', done => {
-            this.action = function action(inputs: string): Promise<any> {
+        it('action should be called in ActionContext', done => {
+            action = function action(): Promise<any> {
                 try {
-                    expect( this ).to.be.instanceof( ActionContext );
+                    expect(this).to.be.instanceof(ActionContext);
                     done();
-                } catch ( error ) {
-                    done( error );
+                } catch (error) {
+                    done(error);
                 }
                 return Promise.resolve();
             };
 
-            this.executor = new Executor( this.context, this.action, this.adapter, options );
+            executor = new Executor(context, action, adapter, options);
 
-            this.executor.execute( inputs, requestor ).catch( done );
-        } );
-    } );
+            executor.execute(inputs, requestor).catch(done);
+        });
+    });
 
-    describe( 'executor.execute should call functions with right arguments and in right order;', () => {
+    describe('executor.execute should call functions with right arguments and in right order;', () => {
 
-        beforeEach ( done => {
-            this.limiter.try.returns( Promise.resolve( this.authenticatorResult ) );
-            this.authenticator.returns( Promise.resolve( this.authenticatorResult ) );
-            this.adapter.returns( Promise.resolve( this.adapterResult ) );
-            this.dispatcher.dispatch.returns( Promise.resolve() );
-            this.notifier.send.returns( Promise.resolve() );
+        beforeEach(done => {
+            (limiter.try as any).returns(Promise.resolve(authenticatorResult));
+            (authenticator as any).returns(Promise.resolve(authenticatorResult));
+            (adapter as any).returns(Promise.resolve(adapterResult));
+            (dispatcher.dispatch as any).returns(Promise.resolve());
+            (notifier.send as any).returns(Promise.resolve());
 
-            this.executor = new Executor( this.context, this.action, this.adapter, options );
+            executor = new Executor(context, action, adapter, options);
 
-            this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
-        } );
+            executor.execute(inputs, requestor).then(() => done()).catch(done);
+        });
 
-        describe( 'logger', () => {
-            it( 'logger.debug should be called once', () => {
-                expect( this.logger.debug.calledOnce ).to.be.true;
-            } );
+        describe('logger', () => {
+            it('logger.debug should be called once', () => {
+                expect((logger.debug as any).calledOnce).to.be.true;
+            });
 
-            it( 'logger.debug should be called with (\'Executing [actionName] action\') arguments', () => {
-                expect( this.logger.debug.firstCall.calledWithExactly( 'Executing proxy action' ) ).to.be.true;
-            } );
+            it('logger.debug should be called with (\'Executing [actionName] action\') arguments', () => {
+                expect((logger.debug as any).firstCall.calledWithExactly('Executing proxy action')).to.be.true;
+            });
 
-            it( 'logger.error should not be called', () => {
-                expect( this.logger.error.called ).to.be.false;
-            } );
-        } );
+            it('logger.error should not be called', () => {
+                expect((logger.error as any).called).to.be.false;
+            });
+        });
 
-        describe( 'limiter.try', () => {
-            it( 'limiter.try should be called once', () => {
-                expect( this.limiter.try.calledOnce ).to.be.true;
-            } );
+        describe('limiter.try', () => {
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
 
-            it( 'limiter.try should be called with global rateLimits arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, globalRateLimits ) ).to.be.true;
-            } );
+            it('limiter.try should be called with global rateLimits arguments', () => {
+                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}`, globalRateLimits)).to.be.true;
+            });
 
-            it( 'limiter.try should return Promise<Dao>', () => {
-                expect( this.limiter.try.firstCall.returnValue ).to.be.instanceof( Promise );
-            } );
-        } );
+            it('limiter.try should return Promise<Dao>', () => {
+                expect((limiter.try as any).firstCall.returnValue).to.be.instanceof(Promise);
+            });
+        });
 
-        describe( 'database.connect', () => {
-            it( 'database.connect should be called once', () => {
-                expect( this.database.connect.calledOnce ).to.be.true;
-            } );
+        describe('database.connect', () => {
+            it('database.connect should be called once', () => {
+                expect((database.connect as any).calledOnce).to.be.true;
+            });
 
-            it( 'database.connect should be called after limiter.try', () => {
-                expect( this.database.connect.calledAfter( this.limiter.try ) ).to.be.true;
-            } );
+            it('database.connect should be called after limiter.try', () => {
+                expect((database.connect as any).calledAfter(limiter.try)).to.be.true;
+            });
 
-            it( 'database.connect should be called with daoOptions arguments', () => {
-                expect( this.database.connect.calledWithExactly( options.daoOptions ) ).to.be.true;
-            } );
+            it('database.connect should be called with daoOptions arguments', () => {
+                expect((database.connect as any).calledWithExactly(options.daoOptions)).to.be.true;
+            });
 
-            it( 'database.connect should return Promise<Dao>', done => {
-                expect( this.database.connect.firstCall.returnValue ).to.be.instanceof( Promise );
+            it('database.connect should return Promise<Dao>', done => {
+                expect((database.connect as any).firstCall.returnValue).to.be.instanceof(Promise);
 
-                this.database.connect.firstCall.returnValue
-                    .then( result => {
-                        expect( result ).to.be.instanceof( MockDao );
+                (database.connect as any).firstCall.returnValue
+                    .then(result => {
+                        expect(result).to.be.instanceof(MockDao);
                         done();
-                    } )
-                    .catch( done );
-            } );
-        } );
+                    })
+                    .catch(done);
+            });
+        });
 
-        describe( 'authenticator', () => {
-            it( 'authenticator should be called once', () => {
-                expect( this.authenticator.calledOnce ).to.be.true;
-            } );
+        describe('authenticator', () => {
+            it('authenticator should be called once', () => {
+                expect((authenticator as any).calledOnce).to.be.true;
+            });
 
-            it( 'authenticator should be called after database.connect', () => {
-                expect( this.authenticator.calledAfter( this.database.connect ) ).to.be.true;
-            } );
+            it('authenticator should be called after database.connect', () => {
+                expect((authenticator as any).calledAfter(database.connect)).to.be.true;
+            });
 
-            it( 'authenticator should be called with daoOptions arguments', () => {
-                expect( this.authenticator.calledWithExactly( requestor, options.authOptions ) ).to.be.true;
-            } );
+            it('authenticator should be called with daoOptions arguments', () => {
+                expect((authenticator as any).calledWithExactly(requestor, options.authOptions)).to.be.true;
+            });
 
-            it( 'authenticator should return Promise<this.authenticatorResult>', done => {
-                expect( this.authenticator.firstCall.returnValue ).to.be.instanceof( Promise );
+            it('authenticator should return Promise<authenticatorResult>', done => {
+                expect((authenticator as any).firstCall.returnValue).to.be.instanceof(Promise);
 
-                this.authenticator.firstCall.returnValue
-                    .then( result => {
-                        expect( result ).to.be.equal( this.authenticatorResult );
+                (authenticator as any).firstCall.returnValue
+                    .then(result => {
+                        expect(result).to.be.equal(authenticatorResult);
                         done();
-                    } )
-                    .catch( done );
-            } );
-        } );
+                    })
+                    .catch(done);
+            });
+        });
 
-        describe( 'adapter', () => {
-            it( 'adapter should be called once', () => {
-                expect( this.adapter.calledOnce ).to.be.true;
-            } );
+        describe('adapter', () => {
+            it('adapter should be called once', () => {
+                expect((adapter as any).calledOnce).to.be.true;
+            });
 
-            it( 'adapter should be called after authenticator', () => {
-                expect( this.adapter.calledAfter( this.authenticator ) ).to.be.true;
-            } );
+            it('adapter should be called after authenticator', () => {
+                expect((adapter as any).calledAfter(authenticator)).to.be.true;
+            });
 
-            it( 'adapter should be called with (inputs, this.authenticatorResult) arguments', () => {
-                expect( this.adapter.calledWithExactly( inputs, this.authenticatorResult ) ).to.be.true;
-            } );
+            it('adapter should be called with (inputs, authenticatorResult) arguments', () => {
+                expect((adapter as any).calledWithExactly(inputs, authenticatorResult)).to.be.true;
+            });
 
-            it( 'adapter should return Promise<this.adapterResult>', done => {
-                expect( this.adapter.firstCall.returnValue ).to.be.instanceof( Promise );
+            it('adapter should return Promise<adapterResult>', done => {
+                expect((adapter as any).firstCall.returnValue).to.be.instanceof(Promise);
 
-                this.adapter.firstCall.returnValue
-                    .then( result => {
-                        expect( result ).to.be.equal( this.adapterResult );
+                (adapter as any).firstCall.returnValue
+                    .then(result => {
+                        expect(result).to.be.equal(adapterResult);
                         done();
-                    } )
-                    .catch( done );
-            } );
-        } );
+                    })
+                    .catch(done);
+            });
+        });
 
-        describe( 'action', () => {
-            it( 'action should be called once', () => {
-                expect( this.action.calledOnce ).to.be.true;
-            } );
+        describe('action', () => {
+            it('action should be called once', () => {
+                expect((action as any).calledOnce).to.be.true;
+            });
 
-            it( 'action should be called after adapter', () => {
-                expect( this.action.calledAfter( this.adapter ) ).to.be.true;
-            } );
+            it('action should be called after adapter', () => {
+                expect((action as any).calledAfter(adapter)).to.be.true;
+            });
 
-            it( 'action should be called with (this.adapterResult) arguments', () => {
-                expect( this.action.calledWithExactly( this.adapterResult ) ).to.be.true;
-            } );
+            it('action should be called with (adapterResult) arguments', () => {
+                expect((action as any).calledWithExactly(adapterResult)).to.be.true;
+            });
 
-            it( 'adapter should return Promise<this.actionResult>', done => {
-                expect( this.action.firstCall.returnValue ).to.be.instanceof( Promise );
+            it('adapter should return Promise<actionResult>', done => {
+                expect((action as any).firstCall.returnValue).to.be.instanceof(Promise);
 
-                this.action.firstCall.returnValue
-                    .then( result => {
-                        expect( result ).to.be.equal( this.actionResult );
+                (action as any).firstCall.returnValue
+                    .then(result => {
+                        expect(result).to.be.equal(actionResult);
                         done();
-                    } )
-                    .catch( done );
-            } );
-        } );
+                    })
+                    .catch(done);
+            });
+        });
 
-        describe( 'dao.release', () => {
-            it( 'dao.release should be called once', () => {
-                expect( this.dao.release.calledOnce ).to.be.true;
-            } );
+        describe('dao.release', () => {
+            it('dao.release should be called once', () => {
+                expect((dao.release as any).calledOnce).to.be.true;
+            });
 
-            it( 'dao.release should be called after action', () => {
-                expect( this.dao.release.calledAfter( this.action ) ).to.be.true;
-            } );
+            it('dao.release should be called after action', () => {
+                expect((dao.release as any).calledAfter(action)).to.be.true;
+            });
 
-            it( 'dao.release should be called with (\'commit\') arguments', () => {
-                expect( this.dao.release.calledWithExactly( 'commit' ) ).to.be.true;
-            } );
+            it('dao.release should be called with (\'commit\') arguments', () => {
+                expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+            });
 
-            it( 'dao.release should return Promise<any>', () => {
-                expect( this.dao.release.firstCall.returnValue ).to.be.instanceof( Promise );
-            } );
-        } );
+            it('dao.release should return Promise<any>', () => {
+                expect((dao.release as any).firstCall.returnValue).to.be.instanceof(Promise);
+            });
+        });
 
-        describe( 'cache.clear', () => {
-            it( 'cache.clear should be called once', () => {
-                expect( this.cache.clear.calledOnce ).to.be.true;
-            } );
+        describe('cache.clear', () => {
+            it('cache.clear should be called once', () => {
+                expect((cache.clear as any).calledOnce).to.be.true;
+            });
 
-            it( 'cache.clear should be called after dao.release', () => {
-                expect( this.cache.clear.calledAfter( this.dao.release ) ).to.be.true;
-            } );
+            it('cache.clear should be called after dao.release', () => {
+                expect((cache.clear as any).calledAfter(dao.release)).to.be.true;
+            });
 
-            it( 'cache.clear should be called with ([\'key1\', \'key2\']) arguments', () => {
-                expect( this.cache.clear.calledWithExactly( [ 'key1', 'key2' ] ) ).to.be.true;
-            } );
-        } );
+            it('cache.clear should be called with ([\'key1\', \'key2\']) arguments', () => {
+                expect((cache.clear as any).calledWithExactly(['key1', 'key2'])).to.be.true;
+            });
+        });
 
-        describe( 'dispatcher.dispatch', () => {
-            it( 'dispatcher.dispatch should be called once', () => {
-                expect( this.dispatcher.dispatch.calledOnce ).to.be.true;
-            } );
+        describe('dispatcher.dispatch', () => {
+            it('dispatcher.dispatch should be called once', () => {
+                expect((dispatcher.dispatch as any).calledOnce).to.be.true;
+            });
 
-            it( 'dispatcher.dispatch should be called with (this.task) arguments', () => {
-                expect( this.dispatcher.dispatch.calledWithExactly( [ this.task ] ) ).to.be.true;
-            } );
+            it('dispatcher.dispatch should be called with (task) arguments', () => {
+                expect((dispatcher.dispatch as any).calledWithExactly([task])).to.be.true;
+            });
 
-            it( 'dispatcher.dispatch should return Promise<any>', () => {
-                expect( this.dispatcher.dispatch.firstCall.returnValue ).to.be.instanceof( Promise );
-            } );
-        } );
+            it('dispatcher.dispatch should return Promise<any>', () => {
+                expect((dispatcher.dispatch as any).firstCall.returnValue).to.be.instanceof(Promise);
+            });
+        });
 
-        describe( 'notifier.send', () => {
-            it( 'notifier.send should be called once', () => {
-                expect( this.notifier.send.calledOnce ).to.be.true;
-            } );
+        describe('notifier.send', () => {
+            it('notifier.send should be called once', () => {
+                expect((notifier.send as any).calledOnce).to.be.true;
+            });
 
-            it( 'notifier.send should be called with (this.notice) arguments', () => {
-                expect( this.notifier.send.calledWithExactly( [ this.notice ] ) ).to.be.true;
-            } );
+            it('notifier.send should be called with (notice) arguments', () => {
+                expect((notifier.send as any).calledWithExactly([notice])).to.be.true;
+            });
 
-            it( 'notifier.send should return Promise<any>', () => {
-                expect( this.notifier.send.firstCall.returnValue ).to.be.instanceof( Promise );
-            } );
-        } );
+            it('notifier.send should return Promise<any>', () => {
+                expect((notifier.send as any).firstCall.returnValue).to.be.instanceof(Promise);
+            });
+        });
 
-        describe( 'logger.log', () => {
-            it( 'logger.log should be called once', () => {
-                expect( this.logger.log.calledOnce ).to.be.true;
-            } );
+        describe('logger.log', () => {
+            it('logger.log should be called once', () => {
+                expect((logger.log as any).calledOnce).to.be.true;
+            });
 
-            it( 'logger.log should be called after notifier.send', () => {
-                expect( this.logger.log.calledAfter( this.notifier.send ) ).to.be.true;
-            } );
+            it('logger.log should be called after notifier.send', () => {
+                expect((logger.log as any).calledAfter(notifier.send)).to.be.true;
+            });
 
-            it( 'logger.log should be called with (\'Executed [actionName]\', { time: number }) arguments', () => {
-                let args = this.logger.log.firstCall.args;
+            it('logger.log should be called with (\'Executed [actionName]\', { time: number }) arguments', () => {
+                let args = (logger.log as any).firstCall.args;
 
-                expect( args.length ).to.equal( 2 );
-                expect( args[ 0 ] ).to.match( /^Executed .+$/ );
-                expect( Object.keys( args[ 1 ] ) ).to.deep.equal( [ 'time' ] );
-            } );
-        } );
-    } );
+                expect(args.length).to.equal(2);
+                expect(args[0]).to.match(/^Executed .+$/);
+                expect(Object.keys(args[1])).to.deep.equal(['time']);
+            });
+        });
+    });
 
-    describe( 'executor.execute should call limiter.try with different arguments;', () => {
-        describe( 'when requestor is a string', () => {
-            beforeEach ( done => {
-                this.executor = new Executor( this.context, this.action, this.adapter, options );
+    describe('executor.execute should call limiter.try with different arguments;', () => {
+        describe('when requestor is a string', () => {
+            beforeEach(done => {
+                executor = new Executor(context, action, adapter, options);
 
-                this.executor.execute( inputs, 'requestor' ).then( () => done() ).catch( done );
-            } );
+                executor.execute(inputs, 'requestor').then(() => done()).catch(done);
+            });
 
-            it( 'limiter.try should be called once', () => {
-                expect( this.limiter.try.calledOnce ).to.be.true;
-            } );
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
 
-            it( 'limiter.try should be called with global rateLimits arguments', () => {
-                expect( this.limiter.try.calledWithExactly( 'requestor', globalRateLimits ) ).to.be.true;
-            } );
-        } );
+            it('limiter.try should be called with global rateLimits arguments', () => {
+                expect((limiter.try as any).calledWithExactly('requestor', globalRateLimits)).to.be.true;
+            });
+        });
 
-        describe( 'when using local scope', () => {
-            beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateLimits : localRateLimits } );
-                const tmpContext = Object.assign({}, this.context);
+        describe('when using local scope', () => {
+            beforeEach(done => {
+                tmpOptions = Object.assign({}, options, { rateLimits: localRateLimits });
+                const tmpContext = Object.assign({}, context);
                 tmpContext.rateLimits = undefined;
 
-                this.executor = new Executor( tmpContext, this.action, this.adapter, tmpOptions );
+                executor = new Executor(tmpContext, action, adapter, tmpOptions);
 
-                this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
-            } );
+                executor.execute(inputs, requestor).then(() => done()).catch(done);
+            });
 
-            it( 'limiter.try should be called once', () => {
-                expect( this.limiter.try.calledOnce ).to.be.true;
-            } );
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
 
-            it( 'limiter.try should be called with rateLimits.local arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits ) ).to.be.true;
-            } );
-        } );
+            it('limiter.try should be called with rateLimits.local arguments', () => {
+                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits)).to.be.true;
+            });
+        });
 
-        describe( 'when using global and local scope', () => {
-            beforeEach ( done => {
-                tmpOptions = Object.assign( {}, options, { rateLimits : localRateLimits } );
+        describe('when using global and local scope', () => {
+            beforeEach(done => {
+                tmpOptions = Object.assign({}, options, { rateLimits: localRateLimits });
 
-                this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                executor = new Executor(context, action, adapter, tmpOptions);
 
-                this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
-            } );
+                executor.execute(inputs, requestor).then(() => done()).catch(done);
+            });
 
-            it( 'limiter.try should be called twice', () => {
-                expect( this.limiter.try.calledTwice ).to.be.true;
-            } );
+            it('limiter.try should be called twice', () => {
+                expect((limiter.try as any).calledTwice).to.be.true;
+            });
 
-            it( 'limiter.try should be called with global rateLimits arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}`, globalRateLimits ) ).to.be.true;
-            } );
+            it('limiter.try should be called with global rateLimits arguments', () => {
+                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}`, globalRateLimits)).to.be.true;
+            });
 
-            it( 'limiter.try should be called with local rateLimits arguments', () => {
-                expect( this.limiter.try.calledWithExactly( `${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits ) ).to.be.true;
-            } );
-        } );
-    } );
+            it('limiter.try should be called with local rateLimits arguments', () => {
+                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits)).to.be.true;
+            });
+        });
+    });
 
-    describe( 'executor.execute should call dao.release without transaction;', () => {
-        beforeEach ( done => {
-            tmpOptions = Object.assign( {}, options, { daoOptions : { startTransaction: false } } );
+    describe('executor.execute should call dao.release without transaction;', () => {
+        beforeEach(done => {
+            tmpOptions = Object.assign({}, options, { daoOptions: { startTransaction: false } });
 
-            this.dao      = <Dao> new MockDao( tmpOptions.daoOptions );
-            this.database = <Database> { connect: sinon.stub().returns( Promise.resolve( this.dao ) ) };
+            dao = new MockDao(tmpOptions.daoOptions);
+            database = { connect: sinon.stub().returns(Promise.resolve(dao)) };
 
-            sinon.spy( this.dao, 'release' );
+            sinon.spy(dao, 'release');
 
-            this.context.database = this.database;
+            context.database = database;
 
-            this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+            executor = new Executor(context, action, adapter, tmpOptions);
 
-            this.executor.execute( inputs, requestor ).then( () => done() ).catch( done );
-        } );
+            executor.execute(inputs, requestor).then(() => done()).catch(done);
+        });
 
-        it( 'database.connect should be called with daoOptions arguments', () => {
-            expect( this.database.connect.calledWithExactly( tmpOptions.daoOptions ) ).to.be.true;
-        } );
+        it('database.connect should be called with daoOptions arguments', () => {
+            expect((database.connect as any).calledWithExactly(tmpOptions.daoOptions)).to.be.true;
+        });
 
-        it( 'dao.release should be called with empty arguments', () => {
-            expect( this.dao.release.calledWithExactly( undefined ) ).to.be.true;
-        } );
-    } );
+        it('dao.release should be called with empty arguments', () => {
+            expect((dao.release as any).calledWithExactly(undefined)).to.be.true;
+        });
+    });
 
-    describe( 'executor.execute should not call cache.clear if cache keys was not provided;', () => {
-        beforeEach ( done => {
-            this.action = sinon.stub().returns( Promise.resolve() );
+    describe('executor.execute should not call cache.clear if cache keys was not provided;', () => {
+        beforeEach(done => {
+            action = sinon.stub().returns(Promise.resolve());
 
-            this.executor = new Executor( this.context, this.action, this.adapter, options );
+            executor = new Executor(context, action, adapter, options);
 
-            this.executor.execute( inputs, 'requestor' ).then( () => done() ).catch( done );
-        } );
+            executor.execute(inputs, 'requestor').then(() => done()).catch(done);
+        });
 
-        it( 'cache.clear should not be called', () => {
-            expect( this.cache.clear.called ).to.be.false;
-        } );
-    } );
+        it('cache.clear should not be called', () => {
+            expect((cache.clear as any).called).to.be.false;
+        });
+    });
 
-    describe( 'executor.execute should return error;', () => {
+    describe('executor.execute should return error;', () => {
         let errorObj;
 
-        describe( 'authenticator', () => {
-            describe( 'if authenticator return error', () => {
-                beforeEach ( done => {
-                    this.authenticator.throws();
+        describe('authenticator', () => {
+            describe('if authenticator return error', () => {
+                beforeEach(done => {
+                    (authenticator as any).throws();
 
-                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                    executor = new Executor(context, action, adapter, tmpOptions);
 
-                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                    executor.execute(inputs, requestor).then(done).catch(error => {
                         errorObj = error;
                         done();
-                    } );
-                } );
+                    });
+                });
 
-                it( 'should return Error', () => {
-                    expect( errorObj ).to.be.instanceof( Error );
-                } );
+                it('should return Error', () => {
+                    expect(errorObj).to.be.instanceof(Error);
+                });
 
-                it( 'authenticator should be called once', () => {
-                    expect( this.authenticator.calledOnce ).to.be.true;
-                } );
+                it('authenticator should be called once', () => {
+                    expect((authenticator as any).calledOnce).to.be.true;
+                });
 
-                it( 'dao.release should be called with (\'rollback\') arguments', () => {
-                    expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
-                } );
-            } );
+                it('dao.release should be called with (\'rollback\') arguments', () => {
+                    expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                });
+            });
 
-            describe( 'if authenticator was rejected', () => {
-                beforeEach ( done => {
-                    this.authenticator.returns( new Promise( ( resolve, reject ) => reject( 'Anauthenticated' ) ) );
+            describe('if authenticator was rejected', () => {
+                beforeEach(done => {
+                    (authenticator as any).returns(new Promise((resolve, reject) => reject('Anauthenticated')));
 
-                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                    executor = new Executor(context, action, adapter, tmpOptions);
 
-                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                    executor.execute(inputs, requestor).then(done).catch(error => {
                         errorObj = error;
                         done();
-                    } );
-                } );
+                    });
+                });
 
-                it( 'should return Error', () => {
-                    expect( errorObj ).to.be.instanceof( Error );
-                } );
+                it('should return Error', () => {
+                    expect(errorObj).to.be.instanceof(Error);
+                });
 
-                it( 'authenticator should be called once', () => {
-                    expect( this.authenticator.calledOnce ).to.be.true;
-                } );
+                it('authenticator should be called once', () => {
+                    expect((authenticator as any).calledOnce).to.be.true;
+                });
 
-                it( 'dao.release should be called with (\'rollback\') arguments', () => {
-                    expect( this.dao.release.calledWithExactly( 'rollback' ) ).to.be.true;
-                } );
-            } );
-        } );
+                it('dao.release should be called with (\'rollback\') arguments', () => {
+                    expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                });
+            });
+        });
 
-        describe( 'limiter', () => {
-            describe( 'if limiter.try return error', () => {
-                beforeEach ( done => {
-                    this.limiter.try.throws();
+        describe('limiter', () => {
+            describe('if limiter.try return error', () => {
+                beforeEach(done => {
+                    (limiter.try as any).throws();
 
-                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                    executor = new Executor(context, action, adapter, tmpOptions);
 
-                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                    executor.execute(inputs, requestor).then(done).catch(error => {
                         errorObj = error;
                         done();
-                    } );
-                } );
+                    });
+                });
 
-                it( 'should return Error', () => {
-                    expect( errorObj ).to.be.instanceof( Error );
-                } );
+                it('should return Error', () => {
+                    expect(errorObj).to.be.instanceof(Error);
+                });
 
-                it( 'limiter.try should be called once', () => {
-                    expect( this.limiter.try.calledOnce ).to.be.true;
-                } );
+                it('limiter.try should be called once', () => {
+                    expect((limiter.try as any).calledOnce).to.be.true;
+                });
 
-                it( 'database.connect should be called once', () => {
-                    expect( this.database.connect.called ).to.be.false;
-                } );
+                it('database.connect should be called once', () => {
+                    expect((database.connect as any).called).to.be.false;
+                });
 
-                it( 'dao.release should not be called', () => {
-                    expect( this.dao.release.called ).to.be.false;
-                } );
-            } );
+                it('dao.release should not be called', () => {
+                    expect((dao.release as any).called).to.be.false;
+                });
+            });
 
-            describe( 'if limiter.try was rejected', () => {
-                beforeEach ( done => {
-                    this.limiter.try.returns( new Promise( ( resolve, reject ) => reject( 'Rate limit exceeded' ) ) );
+            describe('if limiter.try was rejected', () => {
+                beforeEach(done => {
+                    (limiter.try as any).returns(new Promise((resolve, reject) => reject('Rate limit exceeded')));
 
-                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                    executor = new Executor(context, action, adapter, tmpOptions);
 
-                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                    executor.execute(inputs, requestor).then(done).catch(error => {
                         errorObj = error;
                         done();
-                    } );
-                } );
+                    });
+                });
 
-                it( 'should return Error', () => {
-                    expect( errorObj ).to.be.instanceof( Error );
-                } );
+                it('should return Error', () => {
+                    expect(errorObj).to.be.instanceof(Error);
+                });
 
-                it( 'limiter.try should be called once', () => {
-                    expect( this.limiter.try.calledOnce ).to.be.true;
-                } );
+                it('limiter.try should be called once', () => {
+                    expect((limiter.try as any).calledOnce).to.be.true;
+                });
 
-                it( 'database.connect should be called once', () => {
-                    expect( this.database.connect.called ).to.be.false;
-                } );
+                it('database.connect should be called once', () => {
+                    expect((database.connect as any).called).to.be.false;
+                });
 
-                it( 'dao.release should not be called', () => {
-                    expect( this.dao.release.called ).to.be.false;
-                } );
-            } );
-        } );
+                it('dao.release should not be called', () => {
+                    expect((dao.release as any).called).to.be.false;
+                });
+            });
+        });
 
-        describe( 'cache', () => {
-            describe( 'if cache.clear return error', () => {
-                beforeEach ( done => {
-                    this.cache.clear.throws();
+        describe('cache', () => {
+            describe('if cache.clear return error', () => {
+                beforeEach(done => {
+                    (cache.clear as any).throws();
 
-                    this.executor = new Executor( this.context, this.action, this.adapter, tmpOptions );
+                    executor = new Executor(context, action, adapter, tmpOptions);
 
-                    this.executor.execute( inputs, requestor ).then( done ).catch( error => {
+                    executor.execute(inputs, requestor).then(done).catch(error => {
                         errorObj = error;
                         done();
-                    } );
-                } );
+                    });
+                });
 
-                it( 'should return Error', () => {
-                    expect( errorObj ).to.be.instanceof( Error );
-                } );
+                it('should return Error', () => {
+                    expect(errorObj).to.be.instanceof(Error);
+                });
 
-                it( 'this.cache should be called once', () => {
-                    expect( this.cache.clear.calledOnce ).to.be.true;
-                } );
+                it('cache should be called once', () => {
+                    expect((cache.clear as any).calledOnce).to.be.true;
+                });
 
-                it( 'dao.release should be called with (\'commit\') arguments', () => {
-                    expect( this.dao.release.calledWithExactly( 'commit' ) ).to.be.true;
-                } );
-            } );
-        } );
-    } );
-} );
+                it('dao.release should be called with (\'commit\') arguments', () => {
+                    expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+                });
+            });
+        });
+    });
+});
