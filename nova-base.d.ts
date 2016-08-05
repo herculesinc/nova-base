@@ -15,10 +15,11 @@ declare module "nova-base" {
     }
 
     export interface ActionContext {
-        dao     : Dao;
-        cache   : Cache;
-        logger  : Logger;
-        settings: any;
+        dao         : Dao;
+        cache       : Cache;
+        logger      : Logger;
+        settings    : any;
+        timestamp   : number;
 
         register(task: Task);
         register(notice: Notice);
@@ -192,14 +193,16 @@ declare module "nova-base" {
         code?       : number;
         cause?      : Error;
         stackStart? : Function;
+        allowCommit?: boolean;
     }
 
     export class Exception extends Error {
-        name    : string;
-        status  : number;
-        headers?: { [index: string]: string };
-        code?   : number;
-        cause?  : Error;
+        name        : string;
+        status      : number;
+        headers?    : { [index: string]: string };
+        code?       : number;
+        cause?      : Error;
+        allowCommit : boolean;
 
         constructor(options: ExceptionOptions);
         constructor(message: string, status: number);

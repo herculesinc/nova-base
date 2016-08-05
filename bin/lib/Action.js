@@ -11,6 +11,7 @@ class ActionContext {
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
+        this.timestamp = Date.now();
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();

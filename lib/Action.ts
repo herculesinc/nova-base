@@ -18,14 +18,15 @@ export interface ActionAdapter<V> {
 // =================================================================================================
 export class ActionContext {
     
-    dao     : Dao;
-    cache   : Cache;
-    logger  : Logger;
-    settings: any;
-    
-    tasks   : Task[];
-    notices : Notice[];
-    keys    : Set<string>;
+    dao         : Dao;
+    cache       : Cache;
+    logger      : Logger;
+    settings    : any;
+
+    timestamp   : number;
+    tasks       : Task[];
+    notices     : Notice[];
+    keys        : Set<string>;
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -34,7 +35,8 @@ export class ActionContext {
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
-        
+
+        this.timestamp = Date.now();    
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
