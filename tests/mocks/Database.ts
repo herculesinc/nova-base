@@ -22,7 +22,7 @@ export class MockDao implements Dao {
         this.isActive = true;
     }
 
-    release(action?: 'commit' | 'rollback'): Promise<any> {
+    close(action?: 'commit' | 'rollback'): Promise<any> {
         this.inTransaction = false;
         this.isActive = false;
         // console.log(`Releasing database connection: ${action}`)

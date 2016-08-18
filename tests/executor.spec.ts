@@ -131,7 +131,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
         action = sinon.spy(action);
 
-        sinon.spy(dao, 'release');
+        sinon.spy(dao, 'close');
 
         done();
     });
@@ -328,21 +328,21 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
         });
 
-        describe('dao.release', () => {
-            it('dao.release should be called once', () => {
-                expect((dao.release as any).calledOnce).to.be.true;
+        describe('dao.', () => {
+            it('dao. should be called once', () => {
+                expect((dao.close as any).calledOnce).to.be.true;
             });
 
-            it('dao.release should be called after action', () => {
-                expect((dao.release as any).calledAfter(action)).to.be.true;
+            it('dao.close should be called after action', () => {
+                expect((dao.close as any).calledAfter(action)).to.be.true;
             });
 
-            it('dao.release should be called with (\'commit\') arguments', () => {
-                expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+            it('dao.close should be called with (\'commit\') arguments', () => {
+                expect((dao.close as any).calledWithExactly('commit')).to.be.true;
             });
 
-            it('dao.release should return Promise<any>', () => {
-                expect((dao.release as any).firstCall.returnValue).to.be.instanceof(Promise);
+            it('dao.close should return Promise<any>', () => {
+                expect((dao.close as any).firstCall.returnValue).to.be.instanceof(Promise);
             });
         });
 
@@ -351,8 +351,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                 expect((cache.clear as any).calledOnce).to.be.true;
             });
 
-            it('cache.clear should be called after dao.release', () => {
-                expect((cache.clear as any).calledAfter(dao.release)).to.be.true;
+            it('cache.clear should be called after dao.close', () => {
+                expect((cache.clear as any).calledAfter(dao.close)).to.be.true;
             });
 
             it('cache.clear should be called with ([\'key1\', \'key2\']) arguments', () => {
@@ -467,14 +467,14 @@ describe('NOVA-BASE -> Executor tests;', () => {
         });
     });
 
-    describe('executor.execute should call dao.release without transaction;', () => {
+    describe('executor.execute should call dao.close without transaction;', () => {
         beforeEach(done => {
             tmpOptions = Object.assign({}, options, { daoOptions: { startTransaction: false } });
 
             dao = new MockDao(tmpOptions.daoOptions);
             database = { connect: sinon.stub().returns(Promise.resolve(dao)) };
 
-            sinon.spy(dao, 'release');
+            sinon.spy(dao, 'close');
 
             context.database = database;
 
@@ -487,8 +487,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
             expect((database.connect as any).calledWithExactly(tmpOptions.daoOptions)).to.be.true;
         });
 
-        it('dao.release should be called with empty arguments', () => {
-            expect((dao.release as any).calledWithExactly(undefined)).to.be.true;
+        it('dao.close should be called with empty arguments', () => {
+            expect((dao.close as any).calledWithExactly(undefined)).to.be.true;
         });
     });
 
@@ -542,8 +542,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((authenticator as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
                 });
 
@@ -568,8 +568,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((authenticator as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
                 });
             });
@@ -600,8 +600,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((database.connect as any).called).to.be.false;
                     });
 
-                    it('dao.release should not be called', () => {
-                        expect((dao.release as any).called).to.be.false;
+                    it('dao.close should not be called', () => {
+                        expect((dao.close as any).called).to.be.false;
                     });
                 });
 
@@ -630,8 +630,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((database.connect as any).called).to.be.false;
                     });
 
-                    it('dao.release should not be called', () => {
-                        expect((dao.release as any).called).to.be.false;
+                    it('dao.close should not be called', () => {
+                        expect((dao.close as any).called).to.be.false;
                     });
                 });
             });
@@ -678,8 +678,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((action as any).called).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
 
                     it('cache.clear should not be called', () => {
@@ -736,8 +736,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((action as any).called).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
 
                     it('cache.clear should not be called', () => {
@@ -776,8 +776,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((cache.clear as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'commit\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+                    it('dao.close should be called with (\'commit\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
                     });
                 });
             });
@@ -816,8 +816,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((authenticator as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
                 });
 
@@ -842,8 +842,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((authenticator as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'rollback\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('rollback')).to.be.true;
+                    it('dao.close should be called with (\'rollback\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
                     });
                 });
             });
@@ -874,8 +874,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((database.connect as any).called).to.be.false;
                     });
 
-                    it('dao.release should not be called', () => {
-                        expect((dao.release as any).called).to.be.false;
+                    it('dao.close should not be called', () => {
+                        expect((dao.close as any).called).to.be.false;
                     });
                 });
 
@@ -904,8 +904,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((database.connect as any).called).to.be.false;
                     });
 
-                    it('dao.release should not be called', () => {
-                        expect((dao.release as any).called).to.be.false;
+                    it('dao.close should not be called', () => {
+                        expect((dao.close as any).called).to.be.false;
                     });
                 });
             });
@@ -952,8 +952,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((action as any).called).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'commit\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+                    it('dao.close should be called with (\'commit\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
                     });
 
                     it('cache.clear should be called once', () => {
@@ -1010,8 +1010,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((action as any).called).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'commit\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+                    it('dao.close should be called with (\'commit\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
                     });
 
                     it('cache.clear should be called once', () => {
@@ -1050,8 +1050,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                         expect((cache.clear as any).calledOnce).to.be.true;
                     });
 
-                    it('dao.release should be called with (\'commit\') arguments', () => {
-                        expect((dao.release as any).calledWithExactly('commit')).to.be.true;
+                    it('dao.close should be called with (\'commit\') arguments', () => {
+                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
                     });
                 });
             });

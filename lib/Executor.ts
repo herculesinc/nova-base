@@ -134,7 +134,7 @@ export class Executor<V,T> {
                 if (!(error instanceof Exception) || !(error as Exception).allowCommit) throw error;
                 result = error;
             }
-            await dao.release(dao.inTransaction ? 'commit' : undefined);
+            await dao.close(dao.inTransaction ? 'commit' : undefined);
 
             // invalidate cache items
             if (context.keys.size > 0) {
@@ -156,7 +156,7 @@ export class Executor<V,T> {
         catch (error) {
             // if DAO connection is open, close it
             if (dao && dao.isActive) {
-                await dao.release(dao.inTransaction ? 'rollback' : undefined);
+                await dao.close(dao.inTransaction ? 'rollback' : undefined);
             }
 
             // update the error message (if needed), and rethrow the error

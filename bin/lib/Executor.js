@@ -83,7 +83,7 @@ class Executor {
                         throw error;
                     result = error;
                 }
-                yield dao.release(dao.inTransaction ? 'commit' : undefined);
+                yield dao.close(dao.inTransaction ? 'commit' : undefined);
                 // invalidate cache items
                 if (context.keys.size > 0) {
                     this.cache.clear(Array.from(context.keys));
@@ -102,7 +102,7 @@ class Executor {
             catch (error) {
                 // if DAO connection is open, close it
                 if (dao && dao.isActive) {
-                    yield dao.release(dao.inTransaction ? 'rollback' : undefined);
+                    yield dao.close(dao.inTransaction ? 'rollback' : undefined);
                 }
                 // update the error message (if needed), and rethrow the error
                 if (!(error instanceof errors_1.Exception) || !error.allowCommit) {

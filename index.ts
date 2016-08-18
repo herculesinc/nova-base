@@ -34,7 +34,7 @@ export interface Dao {
     isActive        : boolean;
     inTransaction   : boolean;
 
-    release(action?: 'commit' | 'rollback'): Promise<any>;
+    close(action?: 'commit' | 'rollback'): Promise<any>;
 }
 
 // CACHE
@@ -44,7 +44,7 @@ export interface Cache {
     get(keys: string[]): Promise<any[]>;
 
     set(key: string, value: any, expires?: number);
-    execute(script: string, keys: string[], parameters: any[]): Promise<any>;
+    execute(script: string, keys: string[], params: any[]): Promise<any>;
     
     clear(key: string);
     clear(keys: string[]);
