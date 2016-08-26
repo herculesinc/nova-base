@@ -23,10 +23,6 @@ export interface Validator extends BaseValidator {
     authorized? : BaseValidator;
     inputs?     : BaseValidator;
     exists?     : BaseValidator;
-    content?    : BaseValidator;
-    accepts?    : BaseValidator;
-    allowed?    : BaseValidator;
-    ready?      : BaseValidator;
 }
 
 // VALIDATORS
@@ -52,7 +48,7 @@ validate.from = function(error: Error, message?: string) {
 
 // REQUEST
 // ------------------------------------------------------------------------------------------------
-validate.request = function (condition: any, messageOrDescriptor: string | [number, string]) {
+validate.request = function(condition: any, messageOrDescriptor: string | [number, string]) {
     if (!condition) {
         let message: string, code: number;
         if (typeof messageOrDescriptor === 'string') {
@@ -72,7 +68,7 @@ validate.request = function (condition: any, messageOrDescriptor: string | [numb
     }
 }
 
-validate.request.from = function (error: Error, messageOrDescriptor: string | [number, string]) {
+validate.request.from = function(error: Error, messageOrDescriptor: string | [number, string]) {
     if (isError(error)) {
         let message: string, code: number;
         if (typeof messageOrDescriptor === 'string') {
@@ -95,7 +91,7 @@ validate.request.from = function (error: Error, messageOrDescriptor: string | [n
 
 // AUTOHRIZED
 // ------------------------------------------------------------------------------------------------
-validate.authorized = function (condition: any, message: string) {
+validate.authorized = function(condition: any, message: string) {
     if (!condition) throw new Exception({
         message     : message,
         status      : HttpStatusCode.Unauthorized,
@@ -103,7 +99,7 @@ validate.authorized = function (condition: any, message: string) {
     });
 }
 
-validate.authorized.from = function (error: Error, message?: string) {
+validate.authorized.from = function(error: Error, message?: string) {
     if (isError(error)) {
         throw new Exception({
             message     : message,
@@ -116,7 +112,7 @@ validate.authorized.from = function (error: Error, message?: string) {
 
 // INPUTS
 // ------------------------------------------------------------------------------------------------
-validate.inputs = function (condition: any, message: string) {
+validate.inputs = function(condition: any, message: string) {
     if (!condition) throw new Exception({
         message     : message,
         status      : HttpStatusCode.InvalidInputs,
@@ -124,7 +120,7 @@ validate.inputs = function (condition: any, message: string) {
     });
 }
 
-validate.inputs.from = function (error: Error, message?: string) {
+validate.inputs.from = function(error: Error, message?: string) {
     if (isError(error)) {
         throw new Exception({
             message     : message,
@@ -137,7 +133,7 @@ validate.inputs.from = function (error: Error, message?: string) {
 
 // EXISTS
 // ------------------------------------------------------------------------------------------------
-validate.exists = function (condition: any, message: string) {
+validate.exists = function(condition: any, message: string) {
     if (!condition) throw new Exception({
         message     : message,
         status      : HttpStatusCode.NotFound,
@@ -145,97 +141,13 @@ validate.exists = function (condition: any, message: string) {
     });
 }
 
-validate.exists.from = function (error: Error, message?: string) {
+validate.exists.from = function(error: Error, message?: string) {
     if (isError(error)) {
         throw new Exception({
             message     : message,
             status      : HttpStatusCode.NotFound,
             cause       : error,
             stackStart  : validate.exists.from
-        });
-    }
-}
-
-// CONTENT
-// ------------------------------------------------------------------------------------------------
-validate.content = function (condition: any, message: string) {
-    if (!condition) throw new Exception({
-        message     : message,
-        status      : HttpStatusCode.UnsupportedContent,
-        stackStart  : validate.content
-    });
-}
-
-validate.content.from = function (error: Error, message?: string) {
-    if (isError(error)) {
-        throw new Exception({
-            message     : message,
-            status      : HttpStatusCode.UnsupportedContent,
-            cause       : error,
-            stackStart  : validate.content.from
-        });
-    }
-}
-
-// ACCEPTS
-// ------------------------------------------------------------------------------------------------
-validate.accepts = function (condition: any, message: string) {
-    if (!condition) throw new Exception({
-        message     : message,
-        status      : HttpStatusCode.NotAcceptable,
-        stackStart  : validate.accepts
-    });
-}
-
-validate.accepts.from = function (error: Error, message?: string) {
-    if (isError(error)) {
-        throw new Exception({
-            message     : message,
-            status      : HttpStatusCode.NotAcceptable,
-            cause       : error,
-            stackStart  : validate.accepts.from
-        });
-    }
-}
-
-// ALLOWED
-// ------------------------------------------------------------------------------------------------
-validate.allowed = function (condition: any, message: string) {
-    if (!condition) throw new Exception({
-        message     : message,
-        status      : HttpStatusCode.NotAllowed,
-        stackStart  : validate.allowed
-    });
-}
-
-validate.allowed.from = function (error: Error, message?: string) {
-    if (isError(error)) {
-        throw new Exception({
-            message     : message,
-            status      : HttpStatusCode.NotAllowed,
-            cause       : error,
-            stackStart  : validate.allowed.from
-        });
-    }
-}
-
-// READY
-// ------------------------------------------------------------------------------------------------
-validate.ready = function (condition: any, message: string) {
-    if (!condition) throw new Exception({
-        message     : message,
-        status      : HttpStatusCode.NotReady,
-        stackStart  : validate.ready
-    });
-}
-
-validate.ready.from = function (error: Error, message?: string) {
-    if (isError(error)) {
-        throw new Exception({
-            message     : message,
-            status      : HttpStatusCode.NotReady,
-            cause       : error,
-            stackStart  : validate.ready.from
         });
     }
 }

@@ -242,10 +242,6 @@ declare module "nova-base" {
         authorized? : BaseValidator;
         inputs?     : BaseValidator;
         exists?     : BaseValidator;
-        content?    : BaseValidator;
-        accepts?    : BaseValidator;
-        allowed?    : BaseValidator;
-        ready?      : BaseValidator;
     }
 
     export const validate: Validator;
