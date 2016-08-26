@@ -226,15 +226,12 @@ declare module "nova-base" {
     // VALIDATOR
     // --------------------------------------------------------------------------------------------
     export interface BaseValidator {
-        (condition: any, message: string): void;
-        from?: (error: Error, mesage?: string) => void;
+        (conditionOrError: Error | any, message: string): void;
     }
 
     interface DescriptorValidator {
-        (condition: any, message: string): void;
-        (condition: any, descriptor: [number, string]): void;
-
-        from?: (error: Error, messageOrDescriptor?: string | [number, string]) => void;
+        (conditionOrError: Error | any, message: string): void;
+        (conditionOrError: Error | any, descriptor: [number, string]): void;
     }
 
     export interface Validator extends BaseValidator {
