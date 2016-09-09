@@ -67,7 +67,7 @@ class Executor {
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
                 const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
-                if (typeof requestor !== 'string') {
+                if (requestor && typeof requestor !== 'string') {
                     validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
                     authInfo = yield this.authenticator.call(context, requestor, this.authOptions);
                 }
