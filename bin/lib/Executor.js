@@ -39,6 +39,7 @@ class Executor {
         if (options) {
             this.authOptions = options.authOptions;
             this.daoOptions = options.daoOptions;
+            this.defaultInputs = options.defaultInputs;
             if (options.rateLimits) {
                 this.rateLimits = Object.assign({}, this.rateLimits, { local: options.rateLimits });
             }
@@ -72,7 +73,12 @@ class Executor {
                     authInfo = yield this.authenticator.call(context, requestor, this.authOptions);
                 }
                 // execute action and release database connection
-                inputs = this.adapter ? yield this.adapter.call(context, inputs, authInfo) : inputs;
+                if (this.defaultInputs) {
+                    inputs = Object.assign({}, this.defaultInputs, inputs);
+                }
+                if (this.adapter) {
+                    inputs = yield this.adapter.call(context, inputs, authInfo);
+                }
                 let result;
                 try {
                     result = yield this.action.call(context, inputs);

@@ -15,6 +15,7 @@ export interface ExecutionOptions {
     authOptions?    : any;
 	daoOptions?     : DaoOptions;
     rateLimits?     : RateOptions;
+    defaultInputs?  : any;
 }
 
 export interface ExecutorContext {
@@ -53,6 +54,7 @@ export class Executor<V,T> {
     authOptions?    : any;
     daoOptions?     : DaoOptions;
     rateLimits?     : RateLimits;
+    defaultInputs?  : any;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -83,6 +85,7 @@ export class Executor<V,T> {
         if (options) {
             this.authOptions    = options.authOptions;
             this.daoOptions     = options.daoOptions;
+            this.defaultInputs  = options.defaultInputs;
 
             if (options.rateLimits){
                 this.rateLimits = Object.assign({}, this.rateLimits, { local: options.rateLimits });
@@ -124,7 +127,14 @@ export class Executor<V,T> {
             }
 
             // execute action and release database connection
-            inputs = this.adapter ? await this.adapter.call(context, inputs, authInfo) : inputs;
+            if (this.defaultInputs) {
+                inputs = Object.assign({}, this.defaultInputs, inputs);
+            }
+
+            if (this.adapter) {
+                inputs = await this.adapter.call(context, inputs, authInfo);
+            }
+            
             let result: T | Error;
             try {
                 result = await this.action.call(context, inputs);

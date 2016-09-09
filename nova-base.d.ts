@@ -38,6 +38,7 @@ declare module "nova-base" {
         authOptions?    : any;
         daoOptions?     : DaoOptions;
         rateLimits?     : RateOptions;
+        defaultInputs?  : any;
     }
 
     export interface ExecutorContext {
