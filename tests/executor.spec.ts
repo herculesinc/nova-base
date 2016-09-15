@@ -39,7 +39,7 @@ const inputs = {
     lastName : 'Smith'
 };
 
-let authenticator: Authenticator;
+let authenticator: Authenticator<any,any>;
 let dao: Dao;
 let database: Database;
 let cache: Cache;
@@ -61,7 +61,12 @@ let tmpOptions: ExecutionOptions;
 describe('NOVA-BASE -> Executor tests;', () => {
 
     beforeEach(done => {
-        authenticator = sinon.stub();
+        authenticator = {
+            decode: sinon.stub(),
+            toOwner: sinon.stub(),
+            authenticate: sinon.stub()
+        }
+
         dao = new MockDao(options.daoOptions);
 
         database = {
@@ -138,14 +143,23 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
     describe('authenticator, adapter and action should be called in ActionContext;', () => {
         it('authenticator should be called in ActionContext', done => {
-            context.authenticator = function authenticate(): Promise<any> {
-                try {
-                    expect(this).to.be.instanceof(ActionContext);
-                    done();
-                } catch (error) {
-                    done(error);
+            context.authenticator = {
+                decode(inputs: any): any {
+                    // TODO: fix?
+                },
+                toOwner(inputs: any): string {
+                    // TODO: fix?
+                    return undefined;
+                },
+                authenticate(): Promise<any> {
+                    try {
+                        expect(this).to.be.instanceof(ActionContext);
+                        done();
+                    } catch (error) {
+                        done(error);
+                    }
+                    return Promise.resolve();
                 }
-                return Promise.resolve();
             };
 
             executor = new Executor(context, action, adapter, options);

@@ -6,35 +6,44 @@ import { validate } from './../../lib/validator';
 
 // MODULE VARIABLES
 // =================================================================================================
-const KEY = 'testkey';
-const TOKEN_USER_MAP = {
-    testtoken1: 'user1',
-    testtoken2: 'user2'
+const PASSWORD_MAP = {
+    user1: 'password1',
+    user2: 'password2'
 };
+
+export interface Token {
+    username: string;
+    password: string;
+}
 
 // AUTHENTICATOR
 // =================================================================================================
-export const authenticator: Authenticator = function(this: ActionContext, inputs: AuthInputs, options: any): Promise<string> {
+export const authenticator: Authenticator<Token, Token> = {
 
-    try {
-        if (inputs.scheme === 'token') {
-            const user = TOKEN_USER_MAP[inputs.credentials];
-            validate.authorized(user, 'Invalid token');
-            this.logger.debug(`Authenticated ${user} via token`);
-            return Promise.resolve(user);
+    decode(inputs: AuthInputs): Token {
+        validate.authorized(inputs.scheme !== 'token', 'Authentication schema not supported');
+        const parts = inputs.credentials.split('%');
+        validate.authorized(parts.length === 2, 'Invalid token');
+        return {
+            username: parts[0],
+            password: parts[1]
         }
-        else if (inputs.scheme === 'key') {
-            validate.authorized(inputs.credentials === KEY, 'Invalid Key');
-            this.logger.debug(`Authenticated API key`);
-            return Promise.resolve();
+    },
+
+    authenticate(this: ActionContext, token: Token, options: any): Promise<Token> {
+        try {
+            validate.authorized(token, 'Token is undefined');
+            validate.authorized(token.username, 'Invalid user');
+            validate.authorized(token.password === PASSWORD_MAP[token.username], 'Invalid password');
+            this.logger.debug(`Authenticated ${token.username}`);
+            return Promise.resolve(token);
         }
-    }
-    catch (e) {
-        return Promise.reject(e);
+        catch (e) {
+            return Promise.reject(e);
+        }
+    },
+
+    toOwner(token: Token): string {
+        return token.username;
     }
 }
-
-authenticator.toOwner = function(authResult: any): string {
-    if (!authResult) return undefined;
-    return authResult;
-};

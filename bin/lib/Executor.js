@@ -49,14 +49,19 @@ class Executor {
     // --------------------------------------------------------------------------------------------
     execute(inputs, requestor) {
         return __awaiter(this, void 0, void 0, function* () {
-            var dao, authInfo;
+            var dao, authInfo, authRequired;
+            var actionCompleted = false;
             const start = process.hrtime();
             try {
                 this.logger.debug(`Executing ${this.action.name} action`);
+                // decode requestor info, if needed
+                if (requestor && typeof requestor !== 'string') {
+                    validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
+                    authRequired = true;
+                }
                 // enforce rate limit
                 if (this.rateLimits && requestor) {
-                    const key = (typeof requestor !== 'string')
-                        ? `${requestor.scheme}::${requestor.credentials}` : requestor;
+                    const key = (authRequired ? this.authenticator.toOwner(requestor) : requestor);
                     const localTry = this.rateLimits.local
                         ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
                         : undefined;
@@ -68,9 +73,8 @@ class Executor {
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
                 const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
-                if (requestor && typeof requestor !== 'string') {
-                    validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
-                    authInfo = yield this.authenticator.call(context, requestor, this.authOptions);
+                if (authRequired) {
+                    authInfo = yield this.authenticator.authenticate.call(context, requestor, this.authOptions);
                 }
                 // execute action and release database connection
                 if (this.defaultInputs) {
@@ -79,17 +83,19 @@ class Executor {
                 if (this.adapter) {
                     inputs = yield this.adapter.call(context, inputs, authInfo);
                 }
-                let result;
-                try {
-                    result = yield this.action.call(context, inputs);
-                }
-                catch (error) {
-                    // if the error allows for the execution to be completed, don't throw it now
-                    if (!(error instanceof errors_1.Exception) || !error.allowCommit)
-                        throw error;
-                    result = error;
-                }
+                const result = yield this.action.call(context, inputs);
                 yield dao.close(dao.inTransaction ? 'commit' : undefined);
+                // seal the context to prohibit addition of deferred actions
+                context.sealed = true;
+                // execute deferred actions
+                const deferredActionPromises = [];
+                if (context.deferred.length) {
+                    this.logger.log(`Executing ${context.deferred.length} deferred actions`);
+                    for (let dae of context.deferred) {
+                        deferredActionPromises.push(dae.action.call(context, dae.inputs));
+                    }
+                    yield Promise.all(deferredActionPromises);
+                }
                 // invalidate cache items
                 if (context.keys.size > 0) {
                     this.cache.clear(Array.from(context.keys));
@@ -99,6 +105,7 @@ class Executor {
                 const noticePromise = (this.notifier) ? this.notifier.send(context.notices) : undefined;
                 yield Promise.all([taskPromise, noticePromise]);
                 // log executiong time and return the result
+                actionCompleted = true;
                 this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
                 // if result is not an error, return it
                 if (result instanceof Error)
@@ -111,7 +118,7 @@ class Executor {
                     yield dao.close(dao.inTransaction ? 'rollback' : undefined);
                 }
                 // update the error message (if needed), and rethrow the error
-                if (!(error instanceof errors_1.Exception) || !error.allowCommit) {
+                if (!actionCompleted) {
                     error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
                 }
                 return Promise.reject(error);
@@ -127,7 +134,11 @@ function validateContext(context, options) {
         throw new TypeError('Cannot create an Executor: context is undefined');
     // authenticator
     if (context.authenticator) {
-        if (typeof context.authenticator !== 'function')
+        if (typeof context.authenticator.decode !== 'function')
+            throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+        if (typeof context.authenticator.toOwner !== 'function')
+            throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+        if (typeof context.authenticator.authenticate !== 'function')
             throw new TypeError('Cannot create an Executor: Authenticator is invalid');
     }
     else {

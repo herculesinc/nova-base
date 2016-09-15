@@ -14,6 +14,11 @@ export interface ActionAdapter<V> {
     (this: ActionContext, inputs: any, authInfo?: any): Promise<V>
 }
 
+interface ActionEnvelope<V,T> {
+    action: Action<V,T>;
+    inputs: V;
+}
+
 // ACTION CONTEXT
 // =================================================================================================
 export class ActionContext {
@@ -27,6 +32,9 @@ export class ActionContext {
     tasks       : Task[];
     notices     : Notice[];
     keys        : Set<string>;
+    deferred    : ActionEnvelope<any,any>[];
+
+    sealed      : boolean;
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -40,6 +48,9 @@ export class ActionContext {
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
+        this.deferred = [];
+
+        this.sealed = false;
     }
     
     // PUBLIC MEMBERS
@@ -52,8 +63,13 @@ export class ActionContext {
         this.registerNotice(taskOrNotice as Notice);
     }
     
-    clear(filter: NoticeFilter) {
-        this.clearNotices(filter);
+    clear(actionOrFilter: NoticeFilter | Action<any,any>) {
+        if (typeof actionOrFilter === 'function') {
+            this.clearDeferredActions(actionOrFilter);
+        }
+        else {
+            this.clearNotices(actionOrFilter);
+        }
     }
 
     invalidate(key: string) {
@@ -70,6 +86,11 @@ export class ActionContext {
 		return action.call(this, inputs);
 	}
     
+    defer<V,T>(action: Action<V,T>, inputs: V): void {
+        validate(!this.sealed, 'Cannot defer an action: the context is sealed');
+        this.deferred.push({ action: action, inputs: inputs });
+	}
+
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------
     private registerTask(task: Task) {
@@ -135,6 +156,20 @@ export class ActionContext {
 
         if (hasHoles) {
             this.notices = clean(this.notices);
+        }
+    }
+
+    private clearDeferredActions(action: Action<any,any>) {
+        let hasHoles = false;
+        for (let i = 0; i < this.deferred.length; i++) {
+            if (this.deferred[i].action === action) {
+                this.deferred[i] = undefined;
+                hasHoles = true;
+            }
+        }
+
+        if (hasHoles) {
+            this.deferred = clean(this.deferred);
         }
     }
 }

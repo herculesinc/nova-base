@@ -19,7 +19,7 @@ export interface ExecutionOptions {
 }
 
 export interface ExecutorContext {
-    authenticator?  : Authenticator;
+    authenticator?  : Authenticator<any,any>;
     database        : Database;
     cache?          : Cache;
     dispatcher?     : Dispatcher;
@@ -39,7 +39,7 @@ interface RateLimits {
 // ================================================================================================
 export class Executor<V,T> {
 
-    authenticator?  : Authenticator;
+    authenticator?  : Authenticator<any,any>;
     database        : Database;
     cache           : Cache;
     dispatcher?     : Dispatcher;
@@ -95,17 +95,23 @@ export class Executor<V,T> {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    async execute(inputs: any, requestor?: AuthInputs | string): Promise<T> {
-        var dao: Dao, authInfo: any;
+    async execute(inputs: any, requestor?: any | string): Promise<T> {
+        var dao: Dao, authInfo: any, authRequired: any;
+        var actionCompleted = false;
         const start = process.hrtime();
 
         try {
             this.logger.debug(`Executing ${this.action.name} action`);
 
+            // decode requestor info, if needed
+            if (requestor && typeof requestor !== 'string') {
+                validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
+                authRequired = true;
+            }
+
             // enforce rate limit
             if (this.rateLimits && requestor) {
-                const key = (typeof requestor !== 'string')
-                    ? `${requestor.scheme}::${requestor.credentials}` : requestor;
+                const key = (authRequired ? this.authenticator.toOwner(requestor) : requestor) as string;
 
                 const localTry = this.rateLimits.local
                     ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
@@ -121,9 +127,8 @@ export class Executor<V,T> {
             // open database connection, create context, and authenticate action if needed
             dao = await this.database.connect(this.daoOptions);
             const context = new ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
-            if (requestor && typeof requestor !== 'string') {
-                validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
-                authInfo = await this.authenticator.call(context, requestor, this.authOptions);
+            if (authRequired) {
+                authInfo = await this.authenticator.authenticate.call(context, requestor, this.authOptions);
             }
 
             // execute action and release database connection
@@ -135,16 +140,21 @@ export class Executor<V,T> {
                 inputs = await this.adapter.call(context, inputs, authInfo);
             }
             
-            let result: T | Error;
-            try {
-                result = await this.action.call(context, inputs);
-            }
-            catch (error) {
-                // if the error allows for the execution to be completed, don't throw it now
-                if (!(error instanceof Exception) || !(error as Exception).allowCommit) throw error;
-                result = error;
-            }
+            const result: T | Error = await this.action.call(context, inputs);
             await dao.close(dao.inTransaction ? 'commit' : undefined);
+
+            // seal the context to prohibit addition of deferred actions
+            context.sealed = true;
+
+            // execute deferred actions
+            const deferredActionPromises = [];
+            if (context.deferred.length) {
+                this.logger.log(`Executing ${context.deferred.length} deferred actions`);
+                for (let dae of context.deferred) {
+                    deferredActionPromises.push(dae.action.call(context, dae.inputs));
+                }
+                await Promise.all(deferredActionPromises);
+            }
 
             // invalidate cache items
             if (context.keys.size > 0) {
@@ -157,6 +167,7 @@ export class Executor<V,T> {
             await Promise.all([taskPromise, noticePromise]);
 
             // log executiong time and return the result
+            actionCompleted = true;
             this.logger.log(`Executed ${this.action.name} action`, { time: since(start) });
 
             // if result is not an error, return it
@@ -170,7 +181,7 @@ export class Executor<V,T> {
             }
 
             // update the error message (if needed), and rethrow the error
-            if (!(error instanceof Exception) || !(error as Exception).allowCommit) {
+            if (!actionCompleted) {
                 error = wrapMessage(error, `Failed to execute ${this.action.name} action`);
             }
             return Promise.reject<any>(error);
@@ -186,7 +197,9 @@ function validateContext(context: ExecutorContext, options: ExecutionOptions) {
 
     // authenticator
     if (context.authenticator) {
-        if (typeof context.authenticator !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+        if (typeof context.authenticator.decode !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+        if (typeof context.authenticator.toOwner !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
+        if (typeof context.authenticator.authenticate !== 'function') throw new TypeError('Cannot create an Executor: Authenticator is invalid');
     }
     else {
         if (options && options.authOptions) throw new TypeError('Cannot create an Executor: Authenticator was not provided');

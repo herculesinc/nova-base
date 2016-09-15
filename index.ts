@@ -2,6 +2,7 @@
 // ================================================================================================
 import * as http from 'http';
 import { since, HttpCodeNames } from './lib/util';
+import { ActionContext } from './lib/Action';
 import { wrapMessage } from './lib/errors';
 
 // INTERFACES
@@ -9,10 +10,10 @@ import { wrapMessage } from './lib/errors';
 
 // AUTHENTICATOR
 // ------------------------------------------------------------------------------------------------
-export interface Authenticator {
-    (inputs: AuthInputs, options: any): Promise<any>;
-
-    toOwner?: (authResult: any) => string;
+export interface Authenticator<V,T> {
+    decode(inputs: AuthInputs): V;
+    toOwner(authResult: V | T): string;
+    authenticate(this: ActionContext, inputs: V, options: any): Promise<T>;
 }
 
 export interface AuthInputs {

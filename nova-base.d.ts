@@ -25,11 +25,13 @@ declare module "nova-base" {
         register(notice: Notice);
 
         clear(filter: NoticeFilter);
+        clear(action: Action<any,any>);
 
         invalidate(key: string);
         isInvalid(key: string): boolean;
 
         run<V,T>(action: Action<V,T>, inputs: V): Promise<T>;
+        defer<V,T>(action: Action<V,T>, inputs: V): void;
     }
 
     // EXECUTOR
@@ -42,7 +44,7 @@ declare module "nova-base" {
     }
 
     export interface ExecutorContext {
-        authenticator?  : Authenticator;
+        authenticator?  : Authenticator<any,any>;
         database        : Database;
         cache?          : Cache;
         dispatcher?     : Dispatcher;
@@ -63,10 +65,10 @@ declare module "nova-base" {
 
     // AUTHENTICATOR
     // --------------------------------------------------------------------------------------------
-    export interface Authenticator {
-        (inputs: AuthInputs, options: any): Promise<any>;
-
-        toOwner?: (authResult: any) => string;
+    export interface Authenticator<V,T> {
+        decode(inputs: AuthInputs): V;
+        toOwner(authResult: V | T): string;
+        authenticate(this: ActionContext, inputs: V, options: any): Promise<T>;
     }
 
     export interface AuthInputs {
@@ -203,7 +205,6 @@ declare module "nova-base" {
         headers?    : { [index: string]: string };
         code?       : number;
         cause?      : Error;
-        allowCommit : boolean;
 
         constructor(options: ExceptionOptions);
         constructor(message: string, status: number);

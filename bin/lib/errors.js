@@ -11,7 +11,6 @@ class Exception extends Error {
             this.status = (typeof status !== 'number' || status < 400 || status > 599)
                 ? util_1.HttpStatusCode.InternalServerError : status;
             Error.captureStackTrace(this, this.constructor);
-            this.allowCommit = false;
         }
         else {
             super(messageOrOptions.message);
@@ -26,7 +25,6 @@ class Exception extends Error {
                     : this.cause.message;
             }
             Error.captureStackTrace(this, messageOrOptions.stackStart || this.constructor);
-            this.allowCommit = messageOrOptions.allowCommit || false;
         }
         this.name = util_1.HttpCodeNames.get(this.status) || 'Unknown Error';
     }

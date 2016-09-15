@@ -15,6 +15,8 @@ class ActionContext {
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
+        this.deferred = [];
+        this.sealed = false;
     }
     register(taskOrNotice) {
         if (!taskOrNotice)
@@ -22,8 +24,13 @@ class ActionContext {
         this.registerTask(taskOrNotice);
         this.registerNotice(taskOrNotice);
     }
-    clear(filter) {
-        this.clearNotices(filter);
+    clear(actionOrFilter) {
+        if (typeof actionOrFilter === 'function') {
+            this.clearDeferredActions(actionOrFilter);
+        }
+        else {
+            this.clearNotices(actionOrFilter);
+        }
     }
     invalidate(key) {
         if (!key)
@@ -36,6 +43,10 @@ class ActionContext {
     run(action, inputs) {
         // TODO: log action start/end
         return action.call(this, inputs);
+    }
+    defer(action, inputs) {
+        validator_1.validate(!this.sealed, 'Cannot defer an action: the context is sealed');
+        this.deferred.push({ action: action, inputs: inputs });
     }
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -96,6 +107,18 @@ class ActionContext {
         }
         if (hasHoles) {
             this.notices = util_1.clean(this.notices);
+        }
+    }
+    clearDeferredActions(action) {
+        let hasHoles = false;
+        for (let i = 0; i < this.deferred.length; i++) {
+            if (this.deferred[i].action === action) {
+                this.deferred[i] = undefined;
+                hasHoles = true;
+            }
+        }
+        if (hasHoles) {
+            this.deferred = util_1.clean(this.deferred);
         }
     }
 }
