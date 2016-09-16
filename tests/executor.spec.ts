@@ -29,6 +29,8 @@ const options: ExecutionOptions = {
 const authenticatorResult: string = 'authenticator_result';
 const adapterResult: string = 'adapter_result';
 const actionResult: string = 'action_result';
+const dActionResult: string = 'deferred_action_result';
+const nActionResult: string = 'normal_action_result';
 
 const requestor = {
     scheme     : 'token',
@@ -54,6 +56,8 @@ let task: Task;
 let notice: Notice;
 let adapter: any;
 let action: any;
+let normalAction: any;
+let deferredAction: any;
 let executor: Executor<any,any>;
 let exceptionOptions: ExceptionOptions;
 let exception: Exception;
@@ -510,6 +514,55 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
         it('cache.clear should not be called', () => {
             expect((cache.clear as any).called).to.be.false;
+        });
+    });
+
+    describe('deferred actions should be executed after all other actions are executed and the database transaction is committed and released;', () => {
+        beforeEach(done => {
+            normalAction = sinon.stub().returns(Promise.resolve(nActionResult));
+            deferredAction = sinon.stub().returns(Promise.resolve(dActionResult));
+
+            action = function action(this: ActionContext): Promise<any> {
+                // adding task and notice
+                this.register(task);
+                this.register(notice);
+
+                // adding cache keys
+                this.invalidate('key1');
+                this.invalidate('key2');
+
+                this.defer(deferredAction, inputs);
+                this.run(normalAction, inputs);
+
+                return Promise.resolve();
+            };
+
+            action = sinon.spy(action);
+
+            executor = new Executor(context, action, adapter, options);
+
+            executor.execute(inputs, requestor).then(() => done()).catch(done);
+        });
+
+
+        it('normalAction should be called after action', () => {
+            expect((normalAction as any).calledAfter(action)).to.be.true;
+        });
+
+        it('normalAction should be called before dao.close', () => {
+            expect((normalAction as any).calledBefore(dao.close)).to.be.true;
+        });
+
+        it('deferredAction should be called after dao.close', () => {
+            expect((deferredAction as any).calledAfter(dao.close)).to.be.true;
+        });
+
+        it('deferredAction should be called before notifier.send', () => {
+            expect((deferredAction as any).calledBefore(notifier.send)).to.be.true;
+        });
+
+        it('deferredAction should be called before dispatcher.dispatch', () => {
+            expect((deferredAction as any).calledBefore(dispatcher.dispatch)).to.be.true;
         });
     });
 
