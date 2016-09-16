@@ -29,6 +29,8 @@ const options: ExecutionOptions = {
 const authenticatorResult: string = 'authenticator_result';
 const adapterResult: string = 'adapter_result';
 const actionResult: string = 'action_result';
+const dActionResult: string = 'deferred_action_result';
+const nActionResult: string = 'normal_action_result';
 
 const requestor = {
     scheme     : 'token',
@@ -38,6 +40,8 @@ const inputs = {
     firstName: 'John',
     lastName : 'Smith'
 };
+
+const toOwnerResult: string = requestor.credentials;
 
 let authenticator: Authenticator<any,any>;
 let dao: Dao;
@@ -52,6 +56,8 @@ let task: Task;
 let notice: Notice;
 let adapter: any;
 let action: any;
+let normalAction: any;
+let deferredAction: any;
 let executor: Executor<any,any>;
 let exceptionOptions: ExceptionOptions;
 let exception: Exception;
@@ -62,10 +68,10 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
     beforeEach(done => {
         authenticator = {
-            decode: sinon.stub(),
-            toOwner: sinon.stub(),
+            decode      : sinon.stub().returns(requestor),
+            toOwner     : sinon.stub().returns(toOwnerResult),
             authenticate: sinon.stub()
-        }
+        };
 
         dao = new MockDao(options.daoOptions);
 
@@ -142,24 +148,15 @@ describe('NOVA-BASE -> Executor tests;', () => {
     });
 
     describe('authenticator, adapter and action should be called in ActionContext;', () => {
-        it('authenticator should be called in ActionContext', done => {
-            context.authenticator = {
-                decode(inputs: any): any {
-                    // TODO: fix?
-                },
-                toOwner(inputs: any): string {
-                    // TODO: fix?
-                    return undefined;
-                },
-                authenticate(): Promise<any> {
-                    try {
-                        expect(this).to.be.instanceof(ActionContext);
-                        done();
-                    } catch (error) {
-                        done(error);
-                    }
-                    return Promise.resolve();
+        it('authenticator.authenticate should be called in ActionContext', done => {
+            context.authenticator.authenticate = function(): Promise<any> {
+                try {
+                    expect(this).to.be.instanceof(ActionContext);
+                    done();
+                } catch (error) {
+                    done(error);
                 }
+                return Promise.resolve();
             };
 
             executor = new Executor(context, action, adapter, options);
@@ -203,8 +200,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
     describe('executor.execute should call functions with right arguments and in right order;', () => {
 
         beforeEach(done => {
+            (authenticator.authenticate as any).returns(Promise.resolve(authenticatorResult));
             (limiter.try as any).returns(Promise.resolve(authenticatorResult));
-            (authenticator as any).returns(Promise.resolve(authenticatorResult));
             (adapter as any).returns(Promise.resolve(adapterResult));
             (dispatcher.dispatch as any).returns(Promise.resolve());
             (notifier.send as any).returns(Promise.resolve());
@@ -234,7 +231,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('limiter.try should be called with global rateLimits arguments', () => {
-                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}`, globalRateLimits)).to.be.true;
+                expect((limiter.try as any).calledWithExactly(toOwnerResult, globalRateLimits)).to.be.true;
             });
 
             it('limiter.try should return Promise<Dao>', () => {
@@ -267,23 +264,23 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
         });
 
-        describe('authenticator', () => {
-            it('authenticator should be called once', () => {
-                expect((authenticator as any).calledOnce).to.be.true;
+        describe('authenticator.authenticate', () => {
+            it('authenticator.authenticate should be called once', () => {
+                expect((authenticator.authenticate as any).calledOnce).to.be.true;
             });
 
-            it('authenticator should be called after database.connect', () => {
-                expect((authenticator as any).calledAfter(database.connect)).to.be.true;
+            it('authenticator.authenticate should be called after database.connect', () => {
+                expect((authenticator.authenticate as any).calledAfter(database.connect)).to.be.true;
             });
 
-            it('authenticator should be called with daoOptions arguments', () => {
-                expect((authenticator as any).calledWithExactly(requestor, options.authOptions)).to.be.true;
+            it('authenticator.authenticate should be called with daoOptions arguments', () => {
+                expect((authenticator.authenticate as any).calledWithExactly(requestor, options.authOptions)).to.be.true;
             });
 
-            it('authenticator should return Promise<authenticatorResult>', done => {
-                expect((authenticator as any).firstCall.returnValue).to.be.instanceof(Promise);
+            it('authenticator.authenticate should return Promise<authenticatorResult>', done => {
+                expect((authenticator.authenticate as any).firstCall.returnValue).to.be.instanceof(Promise);
 
-                (authenticator as any).firstCall.returnValue
+                (authenticator.authenticate as any).firstCall.returnValue
                     .then(result => {
                         expect(result).to.be.equal(authenticatorResult);
                         done();
@@ -297,8 +294,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                 expect((adapter as any).calledOnce).to.be.true;
             });
 
-            it('adapter should be called after authenticator', () => {
-                expect((adapter as any).calledAfter(authenticator)).to.be.true;
+            it('adapter should be called after authenticator.authenticate', () => {
+                expect((adapter as any).calledAfter(authenticator.authenticate)).to.be.true;
             });
 
             it('adapter should be called with (inputs, authenticatorResult) arguments', () => {
@@ -454,7 +451,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('limiter.try should be called with rateLimits.local arguments', () => {
-                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits)).to.be.true;
+                expect((limiter.try as any).calledWithExactly(`${toOwnerResult}::proxy`, localRateLimits)).to.be.true;
             });
         });
 
@@ -472,11 +469,11 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('limiter.try should be called with global rateLimits arguments', () => {
-                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}`, globalRateLimits)).to.be.true;
+                expect((limiter.try as any).calledWithExactly(toOwnerResult, globalRateLimits)).to.be.true;
             });
 
             it('limiter.try should be called with local rateLimits arguments', () => {
-                expect((limiter.try as any).calledWithExactly(`${requestor.scheme}::${requestor.credentials}::proxy`, localRateLimits)).to.be.true;
+                expect((limiter.try as any).calledWithExactly(`${toOwnerResult}::proxy`, localRateLimits)).to.be.true;
             });
         });
     });
@@ -520,554 +517,258 @@ describe('NOVA-BASE -> Executor tests;', () => {
         });
     });
 
+    describe('deferred actions should be executed after all other actions are executed and the database transaction is committed and released;', () => {
+        beforeEach(done => {
+            normalAction = sinon.stub().returns(Promise.resolve(nActionResult));
+            deferredAction = sinon.stub().returns(Promise.resolve(dActionResult));
+
+            action = function action(this: ActionContext): Promise<any> {
+                // adding task and notice
+                this.register(task);
+                this.register(notice);
+
+                // adding cache keys
+                this.invalidate('key1');
+                this.invalidate('key2');
+
+                this.defer(deferredAction, inputs);
+                this.run(normalAction, inputs);
+
+                return Promise.resolve();
+            };
+
+            action = sinon.spy(action);
+
+            executor = new Executor(context, action, adapter, options);
+
+            executor.execute(inputs, requestor).then(() => done()).catch(done);
+        });
+
+
+        it('normalAction should be called after action', () => {
+            expect((normalAction as any).calledAfter(action)).to.be.true;
+        });
+
+        it('normalAction should be called before dao.close', () => {
+            expect((normalAction as any).calledBefore(dao.close)).to.be.true;
+        });
+
+        it('deferredAction should be called after dao.close', () => {
+            expect((deferredAction as any).calledAfter(dao.close)).to.be.true;
+        });
+
+        it('deferredAction should be called before notifier.send', () => {
+            expect((deferredAction as any).calledBefore(notifier.send)).to.be.true;
+        });
+
+        it('deferredAction should be called before dispatcher.dispatch', () => {
+            expect((deferredAction as any).calledBefore(dispatcher.dispatch)).to.be.true;
+        });
+    });
+
     describe('executor.execute should return error;', () => {
         let errorObj;
 
-        describe('allowCommit = false - executor should not commit transaction or dispatch any tasks/notices;', () => {
-            beforeEach(() => {
-                exceptionOptions = {
-                    message: 'Test Error',
-                    status: 501,
-                    allowCommit: false
-                };
+        beforeEach(() => {
+            exceptionOptions = {
+                message: 'Test Error',
+                status: 501,
+                allowCommit: false
+            };
 
-                exception = new Exception(exceptionOptions);
-            });
+            exception = new Exception(exceptionOptions);
+        });
 
-            describe('authenticator', () => {
-                describe('if authenticator return error', () => {
-                    beforeEach(done => {
-                        (authenticator as any).throws(exception);
+        describe('if authenticator.authenticate throw an exception, executor should not commit transaction or dispatch any tasks/notices;', () => {
+            beforeEach(done => {
+                (authenticator.authenticate as any).throws(exception);
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
+                executor = new Executor(context, action, adapter, tmpOptions);
 
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('authenticator should be called once', () => {
-                        expect((authenticator as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
-                });
-
-                describe('if authenticator was rejected', () => {
-                    beforeEach(done => {
-                        (authenticator as any).returns(new Promise((resolve, reject) => reject(exception)));
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('authenticator should be called once', () => {
-                        expect((authenticator as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
+                executor.execute(inputs, requestor).then(done).catch(error => {
+                    errorObj = error;
+                    done();
                 });
             });
 
-            describe('limiter', () => {
-                describe('if limiter.try return error', () => {
-                    beforeEach(done => {
-                        (limiter.try as any).throws(exception);
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
-
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.false;
-                    });
-
-                    it('dao.close should not be called', () => {
-                        expect((dao.close as any).called).to.be.false;
-                    });
-                });
-
-                describe('if limiter.try was rejected', () => {
-                    beforeEach(done => {
-                        (limiter.try as any).returns(new Promise((resolve, reject) => reject(exception)));
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
-
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.false;
-                    });
-
-                    it('dao.close should not be called', () => {
-                        expect((dao.close as any).called).to.be.false;
-                    });
-                });
+            it('should return Error', () => {
+                expect(errorObj).to.be.instanceof(Exception);
             });
 
-            describe('action', () => {
-                describe('if action return error', () => {
-                    beforeEach(done => {
-                        action = function action(this: ActionContext): Promise<any> {
-                            // adding task and notice
-                            this.register(task);
-                            this.register(notice);
-
-                            // adding cache keys
-                            this.invalidate('key1');
-                            this.invalidate('key2');
-
-                            throw exception;
-                        };
-
-                        action = sinon.spy(action);
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
-
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.true;
-                    });
-
-                    it('action should be called once', () => {
-                        expect((action as any).called).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
-
-                    it('cache.clear should not be called', () => {
-                        expect((cache.clear as any).called).to.be.false;
-                    });
-
-                    it('dispatcher.dispatch should not be called', () => {
-                        expect((dispatcher.dispatch as any).called).to.be.false;
-                    });
-
-                    it('notifier.send should not be called', () => {
-                        expect((notifier.send as any).called).to.be.false;
-                    });
-                });
-
-                describe('if action was rejected', () => {
-                    beforeEach(done => {
-                        action = function action(this: ActionContext): Promise<any> {
-                            // adding task and notice
-                            this.register(task);
-                            this.register(notice);
-
-                            // adding cache keys
-                            this.invalidate('key1');
-                            this.invalidate('key2');
-
-                            return Promise.reject(exception);
-                        };
-
-                        action = sinon.spy(action);
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
-
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.true;
-                    });
-
-                    it('action should be called once', () => {
-                        expect((action as any).called).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
-
-                    it('cache.clear should not be called', () => {
-                        expect((cache.clear as any).called).to.be.false;
-                    });
-
-                    it('dispatcher.dispatch should not be called', () => {
-                        expect((dispatcher.dispatch as any).called).to.be.false;
-                    });
-
-                    it('notifier.send should not be called', () => {
-                        expect((notifier.send as any).called).to.be.false;
-                    });
-                });
+            it('authenticator.authenticate should be called once', () => {
+                expect((authenticator.authenticate as any).calledOnce).to.be.true;
             });
 
-            describe('cache', () => {
-                describe('if cache.clear return error', () => {
-                    beforeEach(done => {
-                        (cache.clear as any).throws(exception);
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.false;
-                    });
-
-                    it('cache should be called once', () => {
-                        expect((cache.clear as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'commit\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
-                    });
-                });
+            it('dao.close should be called with (\'rollback\') arguments', () => {
+                expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
             });
         });
 
-        describe('allowCommit = true;', () => {
-            beforeEach(() => {
-                exceptionOptions = {
-                    message: 'Test Error',
-                    status: 501,
-                    allowCommit: true
+        describe('if limiter.try throw an exception, executor should not commit transaction or dispatch any tasks/notices;', () => {
+            beforeEach(done => {
+                (limiter.try as any).throws(exception);
+
+                executor = new Executor(context, action, adapter, tmpOptions);
+
+                executor.execute(inputs, requestor).then(done).catch(error => {
+                    errorObj = error;
+                    done();
+                });
+            });
+
+            it('should return Error', () => {
+                expect(errorObj).to.be.instanceof(Exception);
+            });
+
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
+
+            it('database.connect should be called once', () => {
+                expect((database.connect as any).called).to.be.false;
+            });
+
+            it('dao.close should not be called', () => {
+                expect((dao.close as any).called).to.be.false;
+            });
+        });
+
+        describe('if action throw an exception, executor should not commit transaction or dispatch any tasks/notices;', () => {
+            beforeEach(done => {
+                action = function action(this: ActionContext): Promise<any> {
+                    // adding task and notice
+                    this.register(task);
+                    this.register(notice);
+
+                    // adding cache keys
+                    this.invalidate('key1');
+                    this.invalidate('key2');
+
+                    throw exception;
                 };
 
-                exception = new Exception(exceptionOptions);
-            });
+                action = sinon.spy(action);
 
-            describe('authenticator', () => {
-                describe('if authenticator return error executor should not commit transaction or dispatch any tasks/notices', () => {
-                    beforeEach(done => {
-                        (authenticator as any).throws(exception);
+                executor = new Executor(context, action, adapter, tmpOptions);
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
-
-                    it('authenticator should be called once', () => {
-                        expect((authenticator as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
-                });
-
-                describe('if authenticator was rejected executor should not commit transaction or dispatch any tasks/notices', () => {
-                    beforeEach(done => {
-                        (authenticator as any).returns(new Promise((resolve, reject) => reject(exception)));
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
-
-                    it('authenticator should be called once', () => {
-                        expect((authenticator as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'rollback\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
-                    });
+                executor.execute(inputs, requestor).then(done).catch(error => {
+                    errorObj = error;
+                    done();
                 });
             });
 
-            describe('limiter', () => {
-                describe('if limiter.try return error executor should not commit transaction or dispatch any tasks/notices', () => {
-                    beforeEach(done => {
-                        (limiter.try as any).throws(exception);
+            it('should return Error', () => {
+                expect(errorObj).to.be.instanceof(Exception);
+            });
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
 
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
+            it('database.connect should be called once', () => {
+                expect((database.connect as any).called).to.be.true;
+            });
 
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
+            it('action should be called once', () => {
+                expect((action as any).called).to.be.true;
+            });
 
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
+            it('dao.close should be called with (\'rollback\') arguments', () => {
+                expect((dao.close as any).calledWithExactly('rollback')).to.be.true;
+            });
 
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.false;
-                    });
+            it('cache.clear should not be called', () => {
+                expect((cache.clear as any).called).to.be.false;
+            });
 
-                    it('dao.close should not be called', () => {
-                        expect((dao.close as any).called).to.be.false;
-                    });
-                });
+            it('dispatcher.dispatch should not be called', () => {
+                expect((dispatcher.dispatch as any).called).to.be.false;
+            });
 
-                describe('if limiter.try was rejected executor should not commit transaction or dispatch any tasks/notices', () => {
-                    beforeEach(done => {
-                        (limiter.try as any).returns(new Promise((resolve, reject) => reject(exception)));
+            it('notifier.send should not be called', () => {
+                expect((notifier.send as any).called).to.be.false;
+            });
+        });
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
+        describe('if action return an error, executor should commit transaction and dispatch all tasks/notices;', () => {
+            beforeEach(done => {
+                action = function action(this: ActionContext): Promise<any> {
+                    // adding task and notice
+                    this.register(task);
+                    this.register(notice);
 
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
+                    // adding cache keys
+                    this.invalidate('key1');
+                    this.invalidate('key2');
 
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
+                    return Promise.resolve(exception);
+                };
 
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
+                action = sinon.spy(action);
 
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.false;
-                    });
+                executor = new Executor(context, action, adapter, tmpOptions);
 
-                    it('dao.close should not be called', () => {
-                        expect((dao.close as any).called).to.be.false;
-                    });
+                executor.execute(inputs, requestor).then(done).catch(error => {
+                    errorObj = error;
+                    done();
                 });
             });
 
-            describe('action', () => {
-                describe('if action return error executor should commit transaction and dispatch all tasks/notices', () => {
-                    beforeEach(done => {
-                        action = function action(this: ActionContext): Promise<any> {
-                            // adding task and notice
-                            this.register(task);
-                            this.register(notice);
+            it('should return Error', () => {
+                expect(errorObj).to.be.instanceof(Exception);
+            });
 
-                            // adding cache keys
-                            this.invalidate('key1');
-                            this.invalidate('key2');
+            it('limiter.try should be called once', () => {
+                expect((limiter.try as any).calledOnce).to.be.true;
+            });
 
-                            throw exception;
-                        };
+            it('database.connect should be called once', () => {
+                expect((database.connect as any).called).to.be.true;
+            });
 
-                        action = sinon.spy(action);
+            it('action should be called once', () => {
+                expect((action as any).called).to.be.true;
+            });
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
+            it('dao.close should be called with (\'commit\') arguments', () => {
+                expect((dao.close as any).calledWithExactly('commit')).to.be.true;
+            });
 
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
+            it('cache.clear should be called once', () => {
+                expect((cache.clear as any).calledOnce).to.be.true;
+            });
 
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
+            it('dispatcher.dispatch should be called once', () => {
+                expect((dispatcher.dispatch as any).calledOnce).to.be.true;
+            });
 
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
+            it('notifier.send should be called once', () => {
+                expect((notifier.send as any).calledOnce).to.be.true;
+            });
+        });
 
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.true;
-                    });
+        describe('if cache.clear throw an exception, executor should not commit transaction or dispatch any tasks/notices;', () => {
+            beforeEach(done => {
+                (cache.clear as any).throws(exception);
 
-                    it('action should be called once', () => {
-                        expect((action as any).called).to.be.true;
-                    });
+                executor = new Executor(context, action, adapter, tmpOptions);
 
-                    it('dao.close should be called with (\'commit\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
-                    });
-
-                    it('cache.clear should be called once', () => {
-                        expect((cache.clear as any).calledOnce).to.be.true;
-                    });
-
-                    it('dispatcher.dispatch should be called once', () => {
-                        expect((dispatcher.dispatch as any).calledOnce).to.be.true;
-                    });
-
-                    it('notifier.send should be called once', () => {
-                        expect((notifier.send as any).calledOnce).to.be.true;
-                    });
-                });
-
-                describe('if action was rejected executor should commit transaction and dispatch all tasks/notices', () => {
-                    beforeEach(done => {
-                        action = function action(this: ActionContext): Promise<any> {
-                            // adding task and notice
-                            this.register(task);
-                            this.register(notice);
-
-                            // adding cache keys
-                            this.invalidate('key1');
-                            this.invalidate('key2');
-
-                            return Promise.reject(exception);
-                        };
-
-                        action = sinon.spy(action);
-
-                        executor = new Executor(context, action, adapter, tmpOptions);
-
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
-
-                    it('limiter.try should be called once', () => {
-                        expect((limiter.try as any).calledOnce).to.be.true;
-                    });
-
-                    it('database.connect should be called once', () => {
-                        expect((database.connect as any).called).to.be.true;
-                    });
-
-                    it('action should be called once', () => {
-                        expect((action as any).called).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'commit\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
-                    });
-
-                    it('cache.clear should be called once', () => {
-                        expect((cache.clear as any).calledOnce).to.be.true;
-                    });
-
-                    it('dispatcher.dispatch should be called once', () => {
-                        expect((dispatcher.dispatch as any).calledOnce).to.be.true;
-                    });
-
-                    it('notifier.send should be called once', () => {
-                        expect((notifier.send as any).calledOnce).to.be.true;
-                    });
+                executor.execute(inputs, requestor).then(done).catch(error => {
+                    errorObj = error;
+                    done();
                 });
             });
 
-            describe('cache', () => {
-                describe('if cache.clear return error executor should not commit transaction or dispatch any tasks/notices', () => {
-                    beforeEach(done => {
-                        (cache.clear as any).throws(exception);
+            it('should return Error', () => {
+                expect(errorObj).to.be.instanceof(Exception);
+            });
 
-                        executor = new Executor(context, action, adapter, tmpOptions);
+            it('cache should be called once', () => {
+                expect((cache.clear as any).calledOnce).to.be.true;
+            });
 
-                        executor.execute(inputs, requestor).then(done).catch(error => {
-                            errorObj = error;
-                            done();
-                        });
-                    });
-
-                    it('should return Error', () => {
-                        expect(errorObj).to.be.instanceof(Exception);
-                        expect(errorObj.allowCommit).to.be.true;
-                    });
-
-                    it('cache should be called once', () => {
-                        expect((cache.clear as any).calledOnce).to.be.true;
-                    });
-
-                    it('dao.close should be called with (\'commit\') arguments', () => {
-                        expect((dao.close as any).calledWithExactly('commit')).to.be.true;
-                    });
-                });
+            it('dao.close should be called with (\'commit\') arguments', () => {
+                expect((dao.close as any).calledWithExactly('commit')).to.be.true;
             });
         });
     });
