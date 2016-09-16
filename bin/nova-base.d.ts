@@ -57,10 +57,13 @@ declare module "nova-base" {
 
     export class Executor<V,T> {
 
-        action: Action<V,T>;
+        action          : Action<V,T>;
+        authenticator?  : Authenticator<any,any>;
+        logger?         : Logger;
 
         constructor(context: ExecutorContext, action: Action<V,T>, adapter?: ActionAdapter<V>, options?: ExecutionOptions);
-        execute(inputs: any, requetor?: AuthInputs | string): Promise<T>;
+
+        execute(inputs: any, requetor?: any | string): Promise<T>;
     }
 
     // AUTHENTICATOR

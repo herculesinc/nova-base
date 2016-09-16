@@ -11,6 +11,8 @@ const PASSWORD_MAP = {
     user2: 'password2'
 };
 
+// INTERFACES
+// =================================================================================================
 export interface Token {
     username: string;
     password: string;
@@ -21,7 +23,7 @@ export interface Token {
 export const authenticator: Authenticator<Token, Token> = {
 
     decode(inputs: AuthInputs): Token {
-        validate.authorized(inputs.scheme !== 'token', 'Authentication schema not supported');
+        validate.authorized(inputs.scheme === 'token', 'Authentication schema not supported');
         const parts = inputs.credentials.split('%');
         validate.authorized(parts.length === 2, 'Invalid token');
         return {
