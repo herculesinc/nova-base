@@ -47,7 +47,7 @@ class Executor {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    execute(inputs, requestor) {
+    execute(inputs, requestor, timestamp) {
         return __awaiter(this, void 0, void 0, function* () {
             var dao, authInfo, authRequired;
             var actionCompleted = false;
@@ -72,7 +72,7 @@ class Executor {
                 }
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
-                const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
+                const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier, timestamp);
                 if (authRequired) {
                     authInfo = yield this.authenticator.authenticate.call(context, requestor, this.authOptions);
                 }

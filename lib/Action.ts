@@ -38,13 +38,13 @@ export class ActionContext {
     
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao: Dao, cache: Cache, logger: Logger, settings: any, tasks: boolean, notices: boolean) {
+    constructor(dao: Dao, cache: Cache, logger: Logger, settings: any, tasks: boolean, notices: boolean, timestamp?: number) {
         this.dao = dao;
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
 
-        this.timestamp = Date.now();    
+        this.timestamp = timestamp || Date.now();
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();

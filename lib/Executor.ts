@@ -95,7 +95,7 @@ export class Executor<V,T> {
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    async execute(inputs: any, requestor?: any | string): Promise<T> {
+    async execute(inputs: any, requestor?: any | string, timestamp?: number): Promise<T> {
         var dao: Dao, authInfo: any, authRequired: any;
         var actionCompleted = false;
         const start = process.hrtime();
@@ -126,7 +126,7 @@ export class Executor<V,T> {
 
             // open database connection, create context, and authenticate action if needed
             dao = await this.database.connect(this.daoOptions);
-            const context = new ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier);
+            const context = new ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier, timestamp);
             if (authRequired) {
                 authInfo = await this.authenticator.authenticate.call(context, requestor, this.authOptions);
             }

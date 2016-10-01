@@ -6,12 +6,12 @@ const util_1 = require('./util');
 class ActionContext {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao, cache, logger, settings, tasks, notices) {
+    constructor(dao, cache, logger, settings, tasks, notices, timestamp) {
         this.dao = dao;
         this.cache = cache;
         this.logger = logger;
         this.settings = settings;
-        this.timestamp = Date.now();
+        this.timestamp = timestamp || Date.now();
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
