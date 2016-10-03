@@ -1,11 +1,24 @@
 "use strict";
-const util_1 = require('./lib/util');
+const validator = require('validator');
+const utilities = require('./lib/util');
 const errors_1 = require('./lib/errors');
 // MODULE VARIABLES
 // =================================================================================================
 exports.util = {
-    since: util_1.since,
-    wrap: errors_1.wrapMessage
+    since: utilities.since,
+    wrap: errors_1.wrapMessage,
+    hash: undefined,
+    isNumeric: validator.isNumeric,
+    arrays: {
+        clean: utilities.cleanArray,
+        areEqual: utilities.areArraysEqual
+    },
+    parse: {
+        int: utilities.parseInteger,
+        number: utilities.parseNumber,
+        date: utilities.parseDate,
+        boolean: utilities.parseDate
+    }
 };
 // RE-EXPORTS
 // =================================================================================================

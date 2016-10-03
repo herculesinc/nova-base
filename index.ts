@@ -1,7 +1,8 @@
 // IMPORTS
 // ================================================================================================
 import * as http from 'http';
-import { since, HttpCodeNames } from './lib/util';
+import * as validator from 'validator';
+import * as utilities from './lib/util';
 import { ActionContext } from './lib/Action';
 import { wrapMessage } from './lib/errors';
 
@@ -117,8 +118,20 @@ export interface Logger {
 // MODULE VARIABLES
 // =================================================================================================
 export const util = {
-    since   : since,
-    wrap    : wrapMessage
+    since       : utilities.since,
+    wrap        : wrapMessage,
+    hash        : undefined,
+    isNumeric   : validator.isNumeric,
+    arrays: {
+        clean   : utilities.cleanArray,
+        areEqual: utilities.areArraysEqual
+    },
+    parse: {
+        int     : utilities.parseInteger,
+        number  : utilities.parseNumber,
+        date    : utilities.parseDate,
+        boolean : utilities.parseDate
+    }
 };
 
 // RE-EXPORTS

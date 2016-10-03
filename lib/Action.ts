@@ -2,7 +2,7 @@
 // =================================================================================================
 import { Dao, Cache, Logger, Notice, NoticeFilter, Task } from './../index';
 import { validate } from './validator';
-import { clean } from './util';
+import { cleanArray as clean } from './util';
 
 // INTERFACES
 // =================================================================================================

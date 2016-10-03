@@ -1,3 +1,13 @@
+// IMPORTS
+// ================================================================================================
+import * as validator from 'validator';
+
+// INTERFACES
+// ================================================================================================
+export interface Comparator<T> {
+    (v1: T, v2: T): boolean;
+}
+
 // TIMER
 // ================================================================================================
 export function since(start: number[]) {
@@ -7,7 +17,7 @@ export function since(start: number[]) {
 
 // ARRAYS
 // ================================================================================================
-export function clean(source: any[]): any[] {
+export function cleanArray(source: any[]): any[] {
     if (!source) return undefined;
     const target = [];
     for (let value of source) {
@@ -16,6 +26,174 @@ export function clean(source: any[]): any[] {
         }
     }
     return target;
+}
+
+export function areArraysEqual<T>(a1: T[], a2: T[], strict = true, comparator?: (v1: T, v2: T) => boolean): boolean {
+    if (a1 == a2) return true;
+    if (!a1 || !a2) return false;
+    if (a1.length !== a2.length) return false;
+
+    if (strict) {
+        if (comparator) {
+            // simple array comparision, using custom comparator
+            for (let i = 0; i < a1.length; i++) {
+                if (!comparator(a1[i], a2[i])) return false;
+            }
+        }
+        else {
+            // simple array comparision, using strict equality
+            for (let i = 0; i < a1.length; i++) {
+                if (a1[i] !== a2[i]) return false;
+            }
+        }        
+    }
+    else {
+        if (comparator) {
+            // set-based comparision, using custom comparator
+            for (let v1 of a1) {
+                let found = false;
+                for (let v2 of a2) {
+                    if (comparator(v1,v2)) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) return false;
+            }
+        }
+        else {
+            // set-based comparison, using strict equality
+            for (let v1 of a1) {
+                let found = false;
+                for (let v2 of a2) {
+                    if (v1 === v2) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found) return false;
+            }
+        }
+    }
+
+    return true;
+}
+
+// PARSERS
+// ================================================================================================
+export function parseInteger(value: any, min?: number, max?: number): number {
+    var num: number;
+
+    // parse the value
+    if (typeof value === 'string') {
+        if (!validator.isInt(value)) {
+            return new TypeError(`'${value}' is not a valid integer`) as any;
+        }
+        num = Number.parseInt(value, 10);
+    }
+    else if (typeof value === 'number') {
+        if (!Number.isInteger(value)) {
+            return new TypeError(`'${value}' is not a valid integer`) as any;
+        }
+        num = value;
+    }
+    else {
+        return new TypeError(`'${value}' is not a valid integer`) as any;
+    }
+
+    // validate min boundary
+    if (min !== null && min !== undefined && num < min) {
+        return new TypeError(`value cannot be smaller than ${min}`) as any;
+    }
+
+    // validate max boundary
+    if (max !== null && max !== undefined && num > max) {
+        return new TypeError(`value cannot be greater than ${max}`) as any;
+    }
+
+    return num;
+}
+
+export function parseNumber(value: any, min?: number, max?: number): number {
+    var num: number;
+
+    // parse the value
+    if (typeof value === 'string') {
+        if (!validator.isFloat(value)) {
+            return new TypeError(`'${value}' is not a valid number`) as any;
+        }
+        num = Number.parseFloat(value);
+    }
+    else if (typeof value === 'number') {
+        num = value;
+    }
+    else {
+        return new TypeError(`'${value}' is not a valid number`) as any;
+    }
+
+    // validate min boundary
+    if (min !== null && min !== undefined && num < min) {
+        return new TypeError(`value cannot be smaller than ${min}`) as any;
+    }
+
+    // validate max boundary
+    if (max !== null && max !== undefined && num > max) {
+        return new TypeError(`value cannot be greater than ${max}`) as any;
+    }
+
+    return num;
+}
+
+export function parseBoolean(value: any, strict = true): boolean {
+    if (strict) {
+        if (typeof value === 'string') {
+            value = value.trim().toLowerCase();
+            if (value === 'true') return true;
+            if (value === 'false') return false;
+            return new TypeError(`'${value}' is not a valid boolean`) as any;
+        }
+        else if (typeof value === 'boolean') {
+            return value;
+        }
+        else {
+            return new TypeError(`'${value}' is not a valid boolean`) as any;
+        }
+    }
+    else {
+        return (!!value);
+    }
+}
+
+export function parseDate(value: any, paramName?: string): Date {
+    var date;
+    
+    if (typeof value === 'string') {
+        if (validator.isNumeric(value)) {
+            date = new Date(Number.parseInt(value, 10));
+        }
+        else {
+            date = new Date(value);
+        }
+    }
+    else if (typeof value === 'number') {
+        date = new Date(value);
+    }
+    else {
+        if (value && value instanceof Date) {
+            date = value;
+        }
+        else {
+            date = new Date(value);
+        }
+    }
+    
+    if (Number.isNaN(date.valueOf())) {
+        return new TypeError(`'${value}' is not a valid date`) as any;
+    }
+    
+    return date;
 }
 
 // HTTP CODES

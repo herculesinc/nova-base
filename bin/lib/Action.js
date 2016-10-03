@@ -67,7 +67,7 @@ class ActionContext {
         }
         this.tasks.push(task);
         if (hasHoles) {
-            this.tasks = util_1.clean(this.tasks);
+            this.tasks = util_1.cleanArray(this.tasks);
         }
     }
     registerNotice(notice) {
@@ -87,7 +87,7 @@ class ActionContext {
         }
         this.notices.push(notice);
         if (hasHoles) {
-            this.notices = util_1.clean(this.notices);
+            this.notices = util_1.cleanArray(this.notices);
         }
     }
     clearNotices(filter) {
@@ -106,7 +106,7 @@ class ActionContext {
             }
         }
         if (hasHoles) {
-            this.notices = util_1.clean(this.notices);
+            this.notices = util_1.cleanArray(this.notices);
         }
     }
     clearDeferredActions(action) {
@@ -118,7 +118,7 @@ class ActionContext {
             }
         }
         if (hasHoles) {
-            this.deferred = util_1.clean(this.deferred);
+            this.deferred = util_1.cleanArray(this.deferred);
         }
     }
 }

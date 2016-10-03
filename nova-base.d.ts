@@ -230,28 +230,41 @@ declare module "nova-base" {
 
     // VALIDATOR
     // --------------------------------------------------------------------------------------------
-    export interface BaseValidator {
-        (conditionOrError: Error | any, message: string): void;
-    }
+    export interface Validator {
+        <T>(value: T, message?: string): T;
 
-    interface DescriptorValidator {
-        (conditionOrError: Error | any, message: string): void;
-        (conditionOrError: Error | any, descriptor: [number, string]): void;
-    }
+        request<T>      (value: T, message?: string, code?: number): T;
+        request<T>      (value: T, descriptor: [number, string]): T;
 
-    export interface Validator extends BaseValidator {
-        request?    : DescriptorValidator;
-        authorized? : BaseValidator;
-        inputs?     : BaseValidator;
-        exists?     : BaseValidator;
+        input<T>        (value: T, message?: string): T;
+        authorized<T>   (value: T, message?: string): T;
+        exists<T>       (value: T, message?: string): T;
     }
 
     export const validate: Validator;
 
     // UTILITIES
     // --------------------------------------------------------------------------------------------
-    export const util: {
-        since   : (start: number[]) => number;
-        wrap    : (error: Error, message: string) => Error;
-    };
+    export interface Comparator<T> {
+        (v1: T, v2: T): boolean;
+    }
+
+    export interface Utilities {
+        since       : (start: number[]) => number;
+        wrap        : (error: Error, message: string) => Error;
+        hash        : (value: any, salt: string) => string;
+        isNumeric   : (value: string) => boolean;
+        arrays: {
+            clean<T>(a1: T[]): T[];
+            areEqual<T>(a1: T[], a2: T[], strict?: boolean, comparator?: Comparator<T>): boolean;
+        };
+        parse: {
+            int(value: string | number, min?: number, max?: number): number;
+            number(value: string | number, min?: number, max?: number): number;
+            date(value: string | number): Date;
+            boolean(value: any, strict?: boolean): boolean;            
+        };        
+    }
+
+    export const util: Utilities;
 }

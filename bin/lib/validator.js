@@ -3,18 +3,18 @@
 // ================================================================================================
 const errors_1 = require('./errors');
 const util_1 = require('./util');
-const util_2 = require('util');
 // VALIDATORS
 // ================================================================================================
-exports.validate = function (conditionOrError, message) {
-    if (conditionOrError) {
-        if (util_2.isError(conditionOrError))
+exports.validate = function (value, message) {
+    if (value) {
+        if (value instanceof Error)
             throw new errors_1.Exception({
                 message: message,
                 status: util_1.HttpStatusCode.InternalServerError,
-                cause: conditionOrError,
+                cause: value,
                 stackStart: exports.validate
             });
+        return value;
     }
     else
         throw new errors_1.Exception({
@@ -25,25 +25,28 @@ exports.validate = function (conditionOrError, message) {
 };
 // REQUEST
 // ------------------------------------------------------------------------------------------------
-exports.validate.request = function (conditionOrError, messageOrDescriptor) {
-    if (conditionOrError) {
-        if (util_2.isError(conditionOrError)) {
+exports.validate.request = function (value, messageOrDescriptor, code) {
+    if (value) {
+        if (value instanceof Error) {
             let message, code;
             if (typeof messageOrDescriptor === 'string') {
                 message = messageOrDescriptor;
             }
             else {
-                code = messageOrDescriptor[0];
-                message = messageOrDescriptor[1];
+                if (messageOrDescriptor) {
+                    code = messageOrDescriptor[0];
+                    message = messageOrDescriptor[1];
+                }
             }
             throw new errors_1.Exception({
                 message: message,
                 status: util_1.HttpStatusCode.BadRequest,
                 code: code,
-                cause: conditionOrError,
+                cause: value,
                 stackStart: exports.validate.request
             });
         }
+        return value;
     }
     else {
         let message, code;
@@ -64,15 +67,16 @@ exports.validate.request = function (conditionOrError, messageOrDescriptor) {
 };
 // AUTOHRIZED
 // ------------------------------------------------------------------------------------------------
-exports.validate.authorized = function (conditionOrError, message) {
-    if (conditionOrError) {
-        if (util_2.isError(conditionOrError))
+exports.validate.authorized = function (value, message) {
+    if (value) {
+        if (value instanceof Error)
             throw new errors_1.Exception({
                 message: message,
                 status: util_1.HttpStatusCode.Unauthorized,
-                cause: conditionOrError,
+                cause: value,
                 stackStart: exports.validate.authorized
             });
+        return value;
     }
     else
         throw new errors_1.Exception({
@@ -83,34 +87,36 @@ exports.validate.authorized = function (conditionOrError, message) {
 };
 // INPUTS
 // ------------------------------------------------------------------------------------------------
-exports.validate.inputs = function (conditionOrError, message) {
-    if (conditionOrError) {
-        if (util_2.isError(conditionOrError))
+exports.validate.input = function (value, message) {
+    if (value) {
+        if (value instanceof Error)
             throw new errors_1.Exception({
                 message: message,
                 status: util_1.HttpStatusCode.InvalidInputs,
-                cause: conditionOrError,
-                stackStart: exports.validate.inputs
+                cause: value,
+                stackStart: exports.validate.input
             });
+        return value;
     }
     else
         throw new errors_1.Exception({
             message: message,
             status: util_1.HttpStatusCode.InvalidInputs,
-            stackStart: exports.validate.inputs
+            stackStart: exports.validate.input
         });
 };
 // EXISTS
 // ------------------------------------------------------------------------------------------------
-exports.validate.exists = function (conditionOrError, message) {
-    if (conditionOrError) {
-        if (util_2.isError(conditionOrError))
+exports.validate.exists = function (value, message) {
+    if (value) {
+        if (value instanceof Error)
             throw new errors_1.Exception({
                 message: message,
                 status: util_1.HttpStatusCode.NotFound,
-                cause: conditionOrError,
+                cause: value,
                 stackStart: exports.validate.exists
             });
+        return value;
     }
     else
         throw new errors_1.Exception({

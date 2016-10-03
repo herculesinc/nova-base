@@ -2,36 +2,37 @@
 // ================================================================================================
 import { Exception } from './errors';
 import { HttpStatusCode } from './util';
-import { isError } from 'util';
 
 // INTERFACES
 // ================================================================================================
 export interface BaseValidator {
-    (conditionOrError: Error | any, message: string): void;
+    (value: any, message?: string): any;
 }
 
 export interface DescriptorValidator {
-    (conditionOrError: Error | any, message: string): void;
-    (conditionOrError: Error | any, descriptor: [number, string]): void;
+    (value: any, message?: string, code?: number): any;
+    (value: any, descriptor: [number, string]): any;
 }
 
 export interface Validator extends BaseValidator {
     request?    : DescriptorValidator;
+    input?      : BaseValidator;
     authorized? : BaseValidator;
-    inputs?     : BaseValidator;
     exists?     : BaseValidator;
 }
 
 // VALIDATORS
 // ================================================================================================
-export const validate: Validator = function(conditionOrError: Error | any, message: string) {
-    if (conditionOrError) {
-        if (isError(conditionOrError)) throw new Exception({
+export const validate: Validator = function(value: any, message?: string): any {
+    if (value) {
+        if (value instanceof Error) throw new Exception({
             message     : message,
             status      : HttpStatusCode.InternalServerError,
-            cause       : conditionOrError,
+            cause       : value,
             stackStart  : validate
         });
+
+        return value;
     }
     else throw new Exception({
         message     : message,
@@ -42,26 +43,30 @@ export const validate: Validator = function(conditionOrError: Error | any, messa
 
 // REQUEST
 // ------------------------------------------------------------------------------------------------
-validate.request = function(conditionOrError: Error | any, messageOrDescriptor: string | [number, string]) {
-    if (conditionOrError) {
-        if (isError(conditionOrError)) {
+validate.request = function(value: any, messageOrDescriptor?: string | [number, string], code?: number): any {
+    if (value) {
+        if (value instanceof Error) {
             let message: string, code: number;
             if (typeof messageOrDescriptor === 'string') {
                 message = messageOrDescriptor;
             }
             else {
-                code = messageOrDescriptor[0];
-                message = messageOrDescriptor[1];
+                if (messageOrDescriptor) {
+                    code = messageOrDescriptor[0];
+                    message = messageOrDescriptor[1];
+                }
             }
 
             throw new Exception({
                 message     : message,
                 status      : HttpStatusCode.BadRequest,
                 code        : code,
-                cause       : conditionOrError,
+                cause       : value,
                 stackStart  : validate.request
             });
         }
+
+        return value;
     } 
     else {
         let message: string, code: number;
@@ -84,14 +89,16 @@ validate.request = function(conditionOrError: Error | any, messageOrDescriptor: 
 
 // AUTOHRIZED
 // ------------------------------------------------------------------------------------------------
-validate.authorized = function(conditionOrError: Error | any, message: string) {
-    if (conditionOrError) {
-        if (isError(conditionOrError)) throw new Exception({
+validate.authorized = function(value: any, message?: string): any {
+    if (value) {
+        if (value instanceof Error) throw new Exception({
             message     : message,
             status      : HttpStatusCode.Unauthorized,
-            cause       : conditionOrError,
+            cause       : value,
             stackStart  : validate.authorized
         });
+
+        return value;
     }
     else throw new Exception({
         message     : message,
@@ -102,32 +109,36 @@ validate.authorized = function(conditionOrError: Error | any, message: string) {
 
 // INPUTS
 // ------------------------------------------------------------------------------------------------
-validate.inputs = function(conditionOrError: Error | any, message: string) {
-    if (conditionOrError) {
-        if (isError(conditionOrError)) throw new Exception({
+validate.input = function(value: any, message?: string): any {
+    if (value) {
+        if (value instanceof Error) throw new Exception({
             message     : message,
             status      : HttpStatusCode.InvalidInputs,
-            cause       : conditionOrError,
-            stackStart  : validate.inputs
+            cause       : value,
+            stackStart  : validate.input
         });
+
+        return value;
     }
     else throw new Exception({
         message     : message,
         status      : HttpStatusCode.InvalidInputs,
-        stackStart  : validate.inputs
+        stackStart  : validate.input
     });
 }
 
 // EXISTS
 // ------------------------------------------------------------------------------------------------
-validate.exists = function(conditionOrError: Error | any, message: string) {
-    if (conditionOrError) {
-        if (isError(conditionOrError)) throw new Exception({
+validate.exists = function(value: any, message?: string): any {
+    if (value) {
+        if (value instanceof Error) throw new Exception({
             message     : message,
             status      : HttpStatusCode.NotFound,
-            cause       : conditionOrError,
+            cause       : value,
             stackStart  : validate.exists
         });
+
+        return value;
     }
     else throw new Exception({
         message     : message,
