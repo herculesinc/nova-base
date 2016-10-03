@@ -233,6 +233,7 @@ declare module "nova-base" {
     export interface Validator {
         <T>(value: T, message?: string): T;
 
+        request<T>      (value: T, code?: number): T;
         request<T>      (value: T, message?: string, code?: number): T;
         request<T>      (value: T, descriptor: [number, string]): T;
 
@@ -252,8 +253,6 @@ declare module "nova-base" {
     export interface Utilities {
         since       : (start: number[]) => number;
         wrap        : (error: Error, message: string) => Error;
-        hash        : (value: any, salt: string) => string;
-        isNumeric   : (value: string) => boolean;
         arrays: {
             clean<T>(a1: T[]): T[];
             areEqual<T>(a1: T[], a2: T[], strict?: boolean, comparator?: Comparator<T>): boolean;

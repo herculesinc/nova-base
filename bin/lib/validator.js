@@ -25,18 +25,19 @@ exports.validate = function (value, message) {
 };
 // REQUEST
 // ------------------------------------------------------------------------------------------------
-exports.validate.request = function (value, messageOrDescriptor, code) {
+exports.validate.request = function (value, messageOrDescriptorOrCode, code) {
     if (value) {
         if (value instanceof Error) {
-            let message, code;
-            if (typeof messageOrDescriptor === 'string') {
-                message = messageOrDescriptor;
+            let message;
+            if (typeof messageOrDescriptorOrCode === 'string') {
+                message = messageOrDescriptorOrCode;
             }
-            else {
-                if (messageOrDescriptor) {
-                    code = messageOrDescriptor[0];
-                    message = messageOrDescriptor[1];
-                }
+            else if (typeof messageOrDescriptorOrCode === 'number') {
+                code = messageOrDescriptorOrCode;
+            }
+            else if (messageOrDescriptorOrCode) {
+                code = messageOrDescriptorOrCode[0];
+                message = messageOrDescriptorOrCode[1];
             }
             throw new errors_1.Exception({
                 message: message,
@@ -49,13 +50,16 @@ exports.validate.request = function (value, messageOrDescriptor, code) {
         return value;
     }
     else {
-        let message, code;
-        if (typeof messageOrDescriptor === 'string') {
-            message = messageOrDescriptor;
+        let message;
+        if (typeof messageOrDescriptorOrCode === 'string') {
+            message = messageOrDescriptorOrCode;
         }
-        else {
-            code = messageOrDescriptor[0];
-            message = messageOrDescriptor[1];
+        else if (typeof messageOrDescriptorOrCode === 'number') {
+            code = messageOrDescriptorOrCode;
+        }
+        else if (messageOrDescriptorOrCode) {
+            code = messageOrDescriptorOrCode[0];
+            message = messageOrDescriptorOrCode[1];
         }
         throw new errors_1.Exception({
             message: message,

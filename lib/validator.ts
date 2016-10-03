@@ -10,6 +10,7 @@ export interface BaseValidator {
 }
 
 export interface DescriptorValidator {
+    (value: any, code?: number): any;
     (value: any, message?: string, code?: number): any;
     (value: any, descriptor: [number, string]): any;
 }
@@ -43,20 +44,21 @@ export const validate: Validator = function(value: any, message?: string): any {
 
 // REQUEST
 // ------------------------------------------------------------------------------------------------
-validate.request = function(value: any, messageOrDescriptor?: string | [number, string], code?: number): any {
+validate.request = function(value: any, messageOrDescriptorOrCode?: string | number | [number, string], code?: number): any {
     if (value) {
         if (value instanceof Error) {
-            let message: string, code: number;
-            if (typeof messageOrDescriptor === 'string') {
-                message = messageOrDescriptor;
+            let message: string;
+            if (typeof messageOrDescriptorOrCode === 'string') {
+                message = messageOrDescriptorOrCode;
             }
-            else {
-                if (messageOrDescriptor) {
-                    code = messageOrDescriptor[0];
-                    message = messageOrDescriptor[1];
-                }
+            else if (typeof messageOrDescriptorOrCode === 'number') {
+                code = messageOrDescriptorOrCode;
             }
-
+            else if (messageOrDescriptorOrCode) {
+                code = messageOrDescriptorOrCode[0];
+                message = messageOrDescriptorOrCode[1];
+            }
+            
             throw new Exception({
                 message     : message,
                 status      : HttpStatusCode.BadRequest,
@@ -69,13 +71,16 @@ validate.request = function(value: any, messageOrDescriptor?: string | [number, 
         return value;
     } 
     else {
-        let message: string, code: number;
-        if (typeof messageOrDescriptor === 'string') {
-            message = messageOrDescriptor;
+        let message: string;
+        if (typeof messageOrDescriptorOrCode === 'string') {
+            message = messageOrDescriptorOrCode;
         }
-        else {
-            code = messageOrDescriptor[0];
-            message = messageOrDescriptor[1];
+        else if (typeof messageOrDescriptorOrCode === 'number') {
+            code = messageOrDescriptorOrCode;
+        }
+        else if (messageOrDescriptorOrCode) {
+            code = messageOrDescriptorOrCode[0];
+            message = messageOrDescriptorOrCode[1];
         }
 
         throw new Exception({

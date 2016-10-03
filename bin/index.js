@@ -1,5 +1,4 @@
 "use strict";
-const validator = require('validator');
 const utilities = require('./lib/util');
 const errors_1 = require('./lib/errors');
 // MODULE VARIABLES
@@ -7,8 +6,6 @@ const errors_1 = require('./lib/errors');
 exports.util = {
     since: utilities.since,
     wrap: errors_1.wrapMessage,
-    hash: undefined,
-    isNumeric: validator.isNumeric,
     arrays: {
         clean: utilities.cleanArray,
         areEqual: utilities.areArraysEqual

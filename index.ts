@@ -1,7 +1,6 @@
 // IMPORTS
 // ================================================================================================
 import * as http from 'http';
-import * as validator from 'validator';
 import * as utilities from './lib/util';
 import { ActionContext } from './lib/Action';
 import { wrapMessage } from './lib/errors';
@@ -120,8 +119,6 @@ export interface Logger {
 export const util = {
     since       : utilities.since,
     wrap        : wrapMessage,
-    hash        : undefined,
-    isNumeric   : validator.isNumeric,
     arrays: {
         clean   : utilities.cleanArray,
         areEqual: utilities.areArraysEqual
