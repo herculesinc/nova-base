@@ -77,4 +77,10 @@ function wrapMessage(error, message) {
     return error;
 }
 exports.wrapMessage = wrapMessage;
+function isError(value) {
+    if (!value)
+        return false;
+    return (value instanceof Error);
+}
+exports.isError = isError;
 //# sourceMappingURL=errors.js.map

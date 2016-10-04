@@ -253,6 +253,7 @@ declare module "nova-base" {
     export interface Utilities {
         since       : (start: number[]) => number;
         wrap        : (error: Error, message: string) => Error;
+        isError     : (value: any) => boolean;
         arrays: {
             clean<T>(a1: T[]): T[];
             areEqual<T>(a1: T[], a2: T[], strict?: boolean, comparator?: Comparator<T>): boolean;

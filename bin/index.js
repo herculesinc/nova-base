@@ -6,6 +6,7 @@ const errors_1 = require('./lib/errors');
 exports.util = {
     since: utilities.since,
     wrap: errors_1.wrapMessage,
+    isError: errors_1.isError,
     arrays: {
         clean: utilities.cleanArray,
         areEqual: utilities.areArraysEqual

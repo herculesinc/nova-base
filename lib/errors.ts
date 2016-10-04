@@ -102,3 +102,8 @@ export function wrapMessage(error: Error, message: string): Error {
     error.message = `${message}: ${error.message}`;
     return error;
 }
+
+export function isError(value: any): boolean {
+    if (!value) return false;
+    return (value instanceof Error);
+}

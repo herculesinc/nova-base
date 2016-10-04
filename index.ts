@@ -3,7 +3,7 @@
 import * as http from 'http';
 import * as utilities from './lib/util';
 import { ActionContext } from './lib/Action';
-import { wrapMessage } from './lib/errors';
+import { wrapMessage, isError } from './lib/errors';
 
 // INTERFACES
 // ================================================================================================
@@ -119,6 +119,7 @@ export interface Logger {
 export const util = {
     since       : utilities.since,
     wrap        : wrapMessage,
+    isError     : isError,
     arrays: {
         clean   : utilities.cleanArray,
         areEqual: utilities.areArraysEqual
