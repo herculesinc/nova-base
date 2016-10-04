@@ -196,6 +196,34 @@ export function parseDate(value: any, paramName?: string): Date {
     return date;
 }
 
+export function parseString(value: any, minLength?: number, maxLength?: number): string {
+    if (value === null || value === undefined || value === '') {
+        if (minLength) {
+            return new TypeError(`value must be at least ${minLength} characters long`) as any;
+        }
+        else {
+            return undefined;
+        }
+    }
+
+    if (typeof value === 'string') {
+        value = value.trim();
+
+        if (minLength && value.length < minLength) {
+            return new TypeError(`value must be at least ${minLength} characters long`) as any;
+        }
+
+        if (maxLength && value.length > maxLength) {
+            return new TypeError(`value can be at most ${maxLength} characters long`) as any;
+        }
+
+        return value || undefined;
+    }
+    else {
+        return new TypeError(`value '${value}' is not a string`) as any;
+    }
+}
+
 // HTTP CODES
 // ================================================================================================
 export enum HttpStatusCode {

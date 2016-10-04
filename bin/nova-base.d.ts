@@ -261,7 +261,8 @@ declare module "nova-base" {
             int(value: string | number, min?: number, max?: number): number;
             number(value: string | number, min?: number, max?: number): number;
             date(value: string | number): Date;
-            boolean(value: any, strict?: boolean): boolean;            
+            boolean(value: any, strict?: boolean): boolean;
+            string(value: any, minLength?: number, maxLength?: number): string;
         };        
     }
 

@@ -251,6 +251,39 @@ describe('NOVA-BASE -> Utilities tests;', () => {
             done();
         });
     });
+
+    describe('String parsing should work correctly;', () => {
+        it('parsing empty string with no min length should work correctly', done => {
+            expect(util.parseString('')).to.be.undefined;
+            expect(util.parseString(null)).to.be.undefined;
+            expect(util.parseString(undefined)).to.be.undefined;
+
+            expect(util.parseString('', 0, 10)).to.be.undefined;
+            expect(util.parseString(null, 0, 10)).to.be.undefined;
+            expect(util.parseString(undefined, 0, 10)).to.be.undefined;
+
+            done();
+        });
+
+        it('parsing a string with leading/trailing spaces should work correctly', done => {
+            expect(util.parseString(' abc')).to.equal('abc');
+            expect(util.parseString('abc ')).to.equal('abc');
+            expect(util.parseString(' abc  ')).to.equal('abc');
+            done();
+        });
+
+        it('parsing a string should enforse length limits', done => {
+            expect(util.parseString('abc', 1, 5)).to.equal('abc');
+            expect(util.parseString('abc', 5, 10)).to.be.instanceof(TypeError);
+            expect(util.parseString('abc', 1, 2)).to.be.instanceof(TypeError);
+            expect(util.parseString('   ', 1, 10)).to.be.instanceof(TypeError);
+            expect(util.parseString('', 1, 10)).to.be.instanceof(TypeError);
+            expect(util.parseString(null, 1, 10)).to.be.instanceof(TypeError);
+            expect(util.parseString(undefined, 1, 10)).to.be.instanceof(TypeError);
+            done();
+        });
+    });
+
 });
 
 // HELPERS

@@ -185,6 +185,30 @@ function parseDate(value, paramName) {
     return date;
 }
 exports.parseDate = parseDate;
+function parseString(value, minLength, maxLength) {
+    if (value === null || value === undefined || value === '') {
+        if (minLength) {
+            return new TypeError(`value must be at least ${minLength} characters long`);
+        }
+        else {
+            return undefined;
+        }
+    }
+    if (typeof value === 'string') {
+        value = value.trim();
+        if (minLength && value.length < minLength) {
+            return new TypeError(`value must be at least ${minLength} characters long`);
+        }
+        if (maxLength && value.length > maxLength) {
+            return new TypeError(`value can be at most ${maxLength} characters long`);
+        }
+        return value || undefined;
+    }
+    else {
+        return new TypeError(`value '${value}' is not a string`);
+    }
+}
+exports.parseString = parseString;
 // HTTP CODES
 // ================================================================================================
 (function (HttpStatusCode) {

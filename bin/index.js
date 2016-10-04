@@ -14,7 +14,8 @@ exports.util = {
         int: utilities.parseInteger,
         number: utilities.parseNumber,
         date: utilities.parseDate,
-        boolean: utilities.parseDate
+        boolean: utilities.parseDate,
+        string: utilities.parseString
     }
 };
 // RE-EXPORTS
