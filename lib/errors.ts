@@ -13,6 +13,8 @@ export interface ExceptionOptions {
     allowCommit?: boolean;
 }
 
+export type ErrorDescriptor = [number, string];
+
 // BASE EXCEPTION CLASS
 // ================================================================================================
 export class Exception extends Error {

@@ -221,6 +221,8 @@ declare module "nova-base" {
         allowCommit?: boolean;
     }
 
+    export type ErrorDescriptor = [number, string];
+
     export class Exception extends Error {
         name        : string;
         status      : number;

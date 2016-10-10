@@ -1,6 +1,6 @@
 // IMPORTS
 // ================================================================================================
-import { Exception } from './errors';
+import { Exception, ErrorDescriptor } from './errors';
 import { HttpStatusCode } from './util';
 
 // INTERFACES
@@ -12,7 +12,7 @@ export interface BaseValidator {
 export interface DescriptorValidator {
     (value: any, code?: number): any;
     (value: any, message?: string, code?: number): any;
-    (value: any, descriptor: [number, string]): any;
+    (value: any, descriptor: ErrorDescriptor): any;
 }
 
 export interface Validator extends BaseValidator {
