@@ -101,8 +101,8 @@ class Executor {
                     this.cache.clear(Array.from(context.keys));
                 }
                 // send out tasks and notices
-                const taskPromise = (this.dispatcher) ? this.dispatcher.dispatch(context.tasks) : undefined;
-                const noticePromise = (this.notifier) ? this.notifier.send(context.notices) : undefined;
+                const taskPromise = this.dispatchTasks(context.tasks);
+                const noticePromise = this.sendNotices(context.notices);
                 yield Promise.all([taskPromise, noticePromise]);
                 // log executiong time and return the result
                 actionCompleted = true;
@@ -124,6 +124,34 @@ class Executor {
                 return Promise.reject(error);
             }
         });
+    }
+    // PRIVATE METHODS
+    // --------------------------------------------------------------------------------------------
+    dispatchTasks(tasks) {
+        if (!this.dispatcher)
+            return undefined;
+        if (!tasks || !tasks.length)
+            return undefined;
+        let taskPromises = [];
+        for (let task of tasks) {
+            taskPromises.push(new Promise((resolve, reject) => {
+                let options = { delay: task.delay };
+                this.dispatcher.sendMessage(task.queue, task.payload, options, function (error) {
+                    if (error) {
+                        return reject(error);
+                    }
+                    resolve();
+                });
+            }));
+        }
+        return Promise.all(taskPromises);
+    }
+    sendNotices(notices) {
+        if (!this.notifier)
+            return undefined;
+        if (!notices || !notices.length)
+            return undefined;
+        return this.notifier.send(notices);
     }
 }
 exports.Executor = Executor;
@@ -163,7 +191,11 @@ function validateContext(context, options) {
     }
     // dispatcher
     if (context.dispatcher) {
-        if (typeof context.dispatcher.dispatch !== 'function')
+        if (typeof context.dispatcher.sendMessage !== 'function')
+            throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+        if (typeof context.dispatcher.receiveMessage !== 'function')
+            throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
+        if (typeof context.dispatcher.deleteMessage !== 'function')
             throw new TypeError('Cannot create an Executor: Dispatcher is invalid');
     }
     // notifier

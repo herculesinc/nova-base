@@ -110,14 +110,32 @@ declare module "nova-base" {
 
     // DISPATCHER
     // --------------------------------------------------------------------------------------------
+    export interface QueueMessage {
+        id      : string;
+        queue   : string;
+        receipt : string;
+        payload : any;
+        received: number;
+        expires : number;
+        sentOn  : number;
+    }
+
+    export interface QueueMessageOptions {
+        delay?  : number;
+        ttl?    : number;
+    }
+
     export interface Dispatcher {
-        dispatch(task: Task): Promise<any>;
-        dispatch(tasks: Task[]): Promise<any>;
+        sendMessage(queue: string, payload: any, options?: QueueMessageOptions, callback?: (error?: Error) => void);
+        receiveMessage(queue: string, callback: (error: Error, message: QueueMessage) => void);
+        deleteMessage(message: QueueMessage, callback?: (error?: Error) => void);
     }
 
     export interface Task {
         queue   : string;
         payload : any;
+        delay?  : number;
+
         merge(task: Task): Task;
     }
 
@@ -133,6 +151,7 @@ declare module "nova-base" {
         topic?  : string;
         event   : string;
         payload : any;
+
         merge(notice: Notice): Notice;
     }
 
@@ -253,7 +272,7 @@ declare module "nova-base" {
     export interface Utilities {
         since       : (start: number[]) => number;
         wrap        : (error: Error, message: string) => Error;
-        isError     : (value: any) => boolean;
+        isError     : (value: any) => value is Error;
         arrays: {
             clean<T>(a1: T[]): T[];
             areEqual<T>(a1: T[], a2: T[], strict?: boolean, comparator?: Comparator<T>): boolean;

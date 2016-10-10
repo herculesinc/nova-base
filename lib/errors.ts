@@ -103,7 +103,7 @@ export function wrapMessage(error: Error, message: string): Error {
     return error;
 }
 
-export function isError(value: any): boolean {
+export function isError(value: any): value is Error {
     if (!value) return false;
     return (value instanceof Error);
 }

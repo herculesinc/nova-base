@@ -86,7 +86,12 @@ describe('NOVA-BASE -> Executor tests;', () => {
             clear  : sinon.stub()
         };
 
-        dispatcher = { dispatch: sinon.stub() };
+        dispatcher = {
+            sendMessage   : sinon.stub().callsArg(3),
+            receiveMessage: sinon.stub().callsArg(0), 
+            deleteMessage : sinon.stub().callsArg(0)
+        };
+
         notifier = { send: sinon.stub() };
         limiter = { 'try': sinon.stub() };
 
@@ -203,7 +208,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
             (authenticator.authenticate as any).returns(Promise.resolve(authenticatorResult));
             (limiter.try as any).returns(Promise.resolve(authenticatorResult));
             (adapter as any).returns(Promise.resolve(adapterResult));
-            (dispatcher.dispatch as any).returns(Promise.resolve());
+            (dispatcher.sendMessage as any).callsArg(3);
             (notifier.send as any).returns(Promise.resolve());
 
             executor = new Executor(context, action, adapter, options);
@@ -371,17 +376,13 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
         });
 
-        describe('dispatcher.dispatch', () => {
-            it('dispatcher.dispatch should be called once', () => {
-                expect((dispatcher.dispatch as any).calledOnce).to.be.true;
+        describe('dispatcher.sendMessage', () => {
+            it('dispatcher.sendMessage should be called once', () => {
+                expect((dispatcher.sendMessage as any).calledOnce).to.be.true;
             });
 
-            it('dispatcher.dispatch should be called with (task) arguments', () => {
-                expect((dispatcher.dispatch as any).calledWithExactly([task])).to.be.true;
-            });
-
-            it('dispatcher.dispatch should return Promise<any>', () => {
-                expect((dispatcher.dispatch as any).firstCall.returnValue).to.be.instanceof(Promise);
+            it('dispatcher.sendMessage should be called with (task) arguments', () => {
+                expect((dispatcher.sendMessage as any).calledWithMatch(task.queue, task.payload)).to.be.true;
             });
         });
 
@@ -561,8 +562,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
             expect((deferredAction as any).calledBefore(notifier.send)).to.be.true;
         });
 
-        it('deferredAction should be called before dispatcher.dispatch', () => {
-            expect((deferredAction as any).calledBefore(dispatcher.dispatch)).to.be.true;
+        it('deferredAction should be called before dispatcher.sendMessage', () => {
+            expect((deferredAction as any).calledBefore(dispatcher.sendMessage)).to.be.true;
         });
     });
 
@@ -681,8 +682,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                 expect((cache.clear as any).called).to.be.false;
             });
 
-            it('dispatcher.dispatch should not be called', () => {
-                expect((dispatcher.dispatch as any).called).to.be.false;
+            it('dispatcher.sendMessage should not be called', () => {
+                expect((dispatcher.sendMessage as any).called).to.be.false;
             });
 
             it('notifier.send should not be called', () => {
@@ -738,8 +739,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
                 expect((cache.clear as any).calledOnce).to.be.true;
             });
 
-            it('dispatcher.dispatch should be called once', () => {
-                expect((dispatcher.dispatch as any).calledOnce).to.be.true;
+            it('dispatcher.sendMessage should be called once', () => {
+                expect((dispatcher.sendMessage as any).calledOnce).to.be.true;
             });
 
             it('notifier.send should be called once', () => {

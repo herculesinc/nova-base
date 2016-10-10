@@ -53,14 +53,31 @@ export interface Cache {
 
 // DISPATCHER
 // ------------------------------------------------------------------------------------------------
+export interface QueueMessage {
+    id      : string;
+    queue   : string;
+    receipt : string;
+    payload : any;
+    received: number;
+    expires : number;
+    sentOn  : number;
+}
+
+export interface QueueMessageOptions {
+    delay?  : number;
+    ttl?    : number;
+}
+
 export interface Dispatcher {
-    dispatch(task: Task): Promise<any>;
-    dispatch(tasks: Task[]): Promise<any>;
+    sendMessage(queue: string, payload: any, options?: QueueMessageOptions, callback?: (error?: Error) => void);
+    receiveMessage(queue: string, callback: (error: Error, message: QueueMessage) => void);
+    deleteMessage(message: QueueMessage, callback?: (error?: Error) => void);
 }
 
 export interface Task {
     queue   : string;
     payload : any;
+    delay?  : number;
 
     merge(task: Task): Task;
 }
