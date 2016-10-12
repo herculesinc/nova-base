@@ -33,6 +33,7 @@ export class ActionContext {
     notices     : Notice[];
     keys        : Set<string>;
     deferred    : ActionEnvelope<any,any>[];
+    suppressed  : Set<Action<any,any>>;
 
     sealed      : boolean;
     
@@ -49,6 +50,7 @@ export class ActionContext {
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
         this.deferred = [];
+        this.suppressed = new Set();
 
         this.sealed = false;
     }
@@ -82,7 +84,11 @@ export class ActionContext {
     }
     
 	run<V,T>(action: Action<V,T>, inputs: V): Promise<T> {
-        // TODO: log action start/end
+        if (this.suppressed.has(action)) {
+            this.logger && this.logger.debug(`Suppressed ${action.name} action`);
+            return Promise.resolve();
+        }
+        this.logger && this.logger.debug(`Started ${action.name} action`);
 		return action.call(this, inputs);
 	}
     
@@ -90,6 +96,22 @@ export class ActionContext {
         validate(!this.sealed, 'Cannot defer an action: the context is sealed');
         this.deferred.push({ action: action, inputs: inputs });
 	}
+
+    suppress(actionOrActions: Action<any,any> | Action<any,any>[]) {
+        if (!actionOrActions) return;
+        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
+        for (let action of actions) {
+            this.suppressed.add(action);
+        }
+    }
+
+    unsuppress(actionOrActions: Action<any,any> | Action<any,any>[]) {
+        if (!actionOrActions) return;
+        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
+        for (let action of actions) {
+            this.suppressed.delete(action);
+        }
+    }
 
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------

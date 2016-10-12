@@ -32,6 +32,12 @@ declare module "nova-base" {
 
         run<V,T>(action: Action<V,T>, inputs: V): Promise<T>;
         defer<V,T>(action: Action<V,T>, inputs: V): void;
+
+        suppress(action: Action<any,any>);
+        suppress(actions: Action<any,any>[]);
+
+        unsuppress(action: Action<any,any>);
+        unsuppress(actions: Action<any,any>[]);
     }
 
     // EXECUTOR

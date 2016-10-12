@@ -16,6 +16,7 @@ class ActionContext {
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
         this.deferred = [];
+        this.suppressed = new Set();
         this.sealed = false;
     }
     register(taskOrNotice) {
@@ -41,12 +42,32 @@ class ActionContext {
         return this.keys.has(key);
     }
     run(action, inputs) {
-        // TODO: log action start/end
+        if (this.suppressed.has(action)) {
+            this.logger && this.logger.debug(`Suppressed ${action.name} action`);
+            return Promise.resolve();
+        }
+        this.logger && this.logger.debug(`Started ${action.name} action`);
         return action.call(this, inputs);
     }
     defer(action, inputs) {
         validator_1.validate(!this.sealed, 'Cannot defer an action: the context is sealed');
         this.deferred.push({ action: action, inputs: inputs });
+    }
+    suppress(actionOrActions) {
+        if (!actionOrActions)
+            return;
+        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
+        for (let action of actions) {
+            this.suppressed.add(action);
+        }
+    }
+    unsuppress(actionOrActions) {
+        if (!actionOrActions)
+            return;
+        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
+        for (let action of actions) {
+            this.suppressed.delete(action);
+        }
     }
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------
