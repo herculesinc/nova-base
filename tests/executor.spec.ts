@@ -31,6 +31,8 @@ const adapterResult: string = 'adapter_result';
 const actionResult: string = 'action_result';
 const dActionResult: string = 'deferred_action_result';
 const nActionResult: string = 'normal_action_result';
+const sAction1Result: string = 'suppressed_action_result_1';
+const sAction2Result: string = 'suppressed_action_result_2';
 
 const requestor = {
     scheme     : 'token',
@@ -58,6 +60,9 @@ let adapter: any;
 let action: any;
 let normalAction: any;
 let deferredAction: any;
+let suppressedAction1: any;
+let suppressedAction2: any;
+let suppressedAction3: any;
 let executor: Executor<any,any>;
 let exceptionOptions: ExceptionOptions;
 let exception: Exception;
@@ -344,8 +349,8 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
         });
 
-        describe('dao.', () => {
-            it('dao. should be called once', () => {
+        describe('dao.close', () => {
+            it('dao.close should be called once', () => {
                 expect((dao.close as any).calledOnce).to.be.true;
             });
 
@@ -565,6 +570,85 @@ describe('NOVA-BASE -> Executor tests;', () => {
         it('deferredAction should be called before dispatcher.sendMessage', () => {
             expect((deferredAction as any).calledBefore(dispatcher.sendMessage)).to.be.true;
         });
+    });
+
+    describe('suppressed actions should not be executed;', () => {
+        const suppressTag1 = Symbol();
+        const suppressTag2 = Symbol();
+        const sMessage = 'suppressed message';
+        const uMessage = 'unsuppressed message';
+
+        beforeEach(done => {
+            suppressedAction1 = sinon.stub().returns(Promise.resolve(sAction1Result));
+            suppressedAction2 = sinon.stub().returns(Promise.resolve(sAction2Result));
+            suppressedAction3 = function action(this: ActionContext): Promise<any> {
+                this.unsuppress(suppressedAction1, suppressTag2);
+                this.unsuppress(suppressedAction2, suppressTag1);
+
+                // should not be executed
+                this.run(suppressedAction1, { message: sMessage});
+
+                // should be executed
+                this.run(suppressedAction2, { message: uMessage});
+
+                return Promise.resolve();
+            };
+
+            action = function action(this: ActionContext): Promise<any> {
+                // should be executed
+                this.run(suppressedAction1, { message: uMessage});
+
+                this.suppress(suppressedAction1, suppressTag1);
+                this.suppress(suppressedAction2, suppressTag1);
+
+                // should not be executed
+                this.run(suppressedAction1, { message: sMessage});
+                this.run(suppressedAction2, { message: sMessage});
+
+                // should be executed
+                this.run(suppressedAction3, { message: uMessage});
+
+                this.unsuppress(suppressedAction2, suppressTag1);
+
+                // should not be executed
+                this.run(suppressedAction2, { message: uMessage});
+
+                return Promise.resolve();
+            };
+
+            action = sinon.spy(action);
+            suppressedAction3 = sinon.spy(suppressedAction3);
+
+            executor = new Executor(context, action, adapter, options);
+
+            executor.execute(inputs, requestor).then(() => done()).catch(done);
+        });
+
+
+        it('suppressedAction1 should be called once', () => {
+            expect((suppressedAction1 as any).calledOnce).to.be.true;
+        });
+
+        it('suppressedAction1 should be called with right arguments', () => {
+            expect((suppressedAction1 as any).alwaysCalledWithExactly({ message: uMessage})).to.be.true;
+        });
+
+        it('suppressedAction2 should be called twice', () => {
+            expect((suppressedAction2 as any).calledTwice).to.be.true;
+        });
+
+        it('suppressedAction2 should be called with right arguments', () => {
+            expect((suppressedAction2 as any).alwaysCalledWithExactly({ message: uMessage})).to.be.true;
+        });
+
+        it('suppressedAction3 should be called once', () => {
+            expect((suppressedAction3 as any).calledOnce).to.be.true;
+        });
+
+        it('suppressedAction3 should be called with right arguments', () => {
+            expect((suppressedAction3 as any).alwaysCalledWithExactly({ message: uMessage})).to.be.true;
+        });
+
     });
 
     describe('executor.execute should return error;', () => {
