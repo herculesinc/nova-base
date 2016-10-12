@@ -33,7 +33,7 @@ export class ActionContext {
     notices     : Notice[];
     keys        : Set<string>;
     deferred    : ActionEnvelope<any,any>[];
-    suppressed  : Set<Action<any,any>>;
+    suppressed  : Map<Action<any,any>, Set<Symbol>>;
 
     sealed      : boolean;
     
@@ -50,7 +50,7 @@ export class ActionContext {
         this.notices = notices ? [] : undefined;
         this.keys = new Set();
         this.deferred = [];
-        this.suppressed = new Set();
+        this.suppressed = new Map();
 
         this.sealed = false;
     }
@@ -97,19 +97,30 @@ export class ActionContext {
         this.deferred.push({ action: action, inputs: inputs });
 	}
 
-    suppress(actionOrActions: Action<any,any> | Action<any,any>[]) {
+    suppress(actionOrActions: Action<any,any> | Action<any,any>[], tag: Symbol) {
         if (!actionOrActions) return;
         const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
         for (let action of actions) {
-            this.suppressed.add(action);
+            let tags = this.suppressed.get(action);
+            if (!tags) {
+                tags = new Set<Symbol>();
+                this.suppressed.set(action, tags);
+            }
+            tags.add(tag);
         }
     }
 
-    unsuppress(actionOrActions: Action<any,any> | Action<any,any>[]) {
+    unsuppress(actionOrActions: Action<any,any> | Action<any,any>[], tag: Symbol) {
         if (!actionOrActions) return;
         const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
         for (let action of actions) {
-            this.suppressed.delete(action);
+            let tags = this.suppressed.get(action);
+            if (tags) {
+                tags.delete(tag);
+                if (!tags.size) {
+                    this.suppressed.delete(action);
+                }
+            }
         }
     }
 

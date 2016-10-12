@@ -27,6 +27,8 @@ const context: ExecutorContext = {
     }
 };
 
+const testTag = Symbol();
+
 const options: ExecutionOptions = {
     daoOptions: { startTransaction: true },
     rateLimits: { limit: 10, window: 250 }
@@ -39,13 +41,30 @@ function helloWorldAdapter(this: ActionContext, inputs: any, token: Token): Prom
     });
 }
 
-function helloWorldAction(this: ActionContext, inputs: { user: string, name: string }): Promise<string> {
+async function helloWorldAction(this: ActionContext, inputs: { user: string, name: string }): Promise<string> {
     this.defer(deferredAction, { message: 'test message'});
-    return Promise.resolve(`Hello, my name is ${inputs.name}, count=${this.settings.count}, user=${inputs.user}`);
+    
+    // sould execute inner action
+    await this.run(innerAction, { message: 'test1 message'});
+
+    // should not execute inner action
+    this.suppress(innerAction, testTag);
+    await this.run(innerAction, { message: 'test2 message'});
+    this.unsuppress(innerAction, testTag);
+
+    // should execute inner action
+    await this.run(innerAction, { message: 'test3 message'});
+
+    return `Hello, my name is ${inputs.name}, count=${this.settings.count}, user=${inputs.user}`;
 }
 
 function deferredAction(this: ActionContext, inputs: { message: string }): Promise<void> {
     console.log(`Deferred: ${inputs.message}`);
+    return Promise.resolve();
+}
+
+function innerAction(this: ActionContext, inputs: { message: string }): Promise<void> {
+    console.log(`Inner: ${inputs.message}`);
     return Promise.resolve();
 }
 
