@@ -1,6 +1,6 @@
 {
   "name": "nova-base",
-  "version": "0.7.2",
+  "version": "0.7.3",
   "description": "Foundation for Nova API framework",
   "keywords": [
     "nova",

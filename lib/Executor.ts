@@ -137,7 +137,7 @@ export class Executor<V,T> {
             }
 
             if (this.adapter) {
-                inputs = await this.adapter.call(context, inputs, authInfo);
+                inputs = await this.adapter.call(context, inputs, authInfo || requestor);
             }
             
             const result: T | Error = await this.action.call(context, inputs);

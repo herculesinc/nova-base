@@ -81,7 +81,7 @@ class Executor {
                     inputs = Object.assign({}, this.defaultInputs, inputs);
                 }
                 if (this.adapter) {
-                    inputs = yield this.adapter.call(context, inputs, authInfo);
+                    inputs = yield this.adapter.call(context, inputs, authInfo || requestor);
                 }
                 const result = yield this.action.call(context, inputs);
                 yield dao.close(dao.inTransaction ? 'commit' : undefined);
