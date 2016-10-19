@@ -119,7 +119,7 @@ declare module "nova-base" {
     export interface QueueMessage {
         id      : string;
         queue   : string;
-        receipt : string;
+        receipt?: string;
         payload : any;
         received: number;
         expires : number;
