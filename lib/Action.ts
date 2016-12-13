@@ -86,7 +86,7 @@ export class ActionContext {
 	run<V,T>(action: Action<V,T>, inputs: V): Promise<T> {
         if (this.suppressed.has(action)) {
             this.logger && this.logger.debug(`Suppressed ${action.name} action`);
-            return Promise.resolve();
+            return Promise.resolve() as Promise<any>;
         }
         this.logger && this.logger.debug(`Started ${action.name} action`);
 		return action.call(this, inputs);

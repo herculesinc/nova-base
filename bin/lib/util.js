@@ -1,7 +1,7 @@
 "use strict";
 // IMPORTS
 // ================================================================================================
-const validator = require('validator');
+const validator = require("validator");
 // TIMER
 // ================================================================================================
 function since(start) {
@@ -186,13 +186,13 @@ function parseDate(value, paramName) {
 }
 exports.parseDate = parseDate;
 function parseString(value, minLength, maxLength) {
-    if (value === null || value === undefined || value === '') {
-        if (minLength) {
-            return new TypeError(`value must be at least ${minLength} characters long`);
-        }
-        else {
-            return undefined;
-        }
+    if (value === null || value === undefined) {
+        return minLength ? new TypeError(`value is missing`) : undefined;
+    }
+    else if (value === '') {
+        return minLength
+            ? new TypeError(`value must be at least ${minLength} characters long`)
+            : undefined;
     }
     if (typeof value === 'string') {
         value = value.trim();
@@ -211,6 +211,7 @@ function parseString(value, minLength, maxLength) {
 exports.parseString = parseString;
 // HTTP CODES
 // ================================================================================================
+var HttpStatusCode;
 (function (HttpStatusCode) {
     HttpStatusCode[HttpStatusCode["OK"] = 200] = "OK";
     HttpStatusCode[HttpStatusCode["Created"] = 201] = "Created";
@@ -230,8 +231,7 @@ exports.parseString = parseString;
     HttpStatusCode[HttpStatusCode["InternalServerError"] = 500] = "InternalServerError";
     HttpStatusCode[HttpStatusCode["NotImplemented"] = 501] = "NotImplemented";
     HttpStatusCode[HttpStatusCode["ServiceUnavailable"] = 503] = "ServiceUnavailable";
-})(exports.HttpStatusCode || (exports.HttpStatusCode = {}));
-var HttpStatusCode = exports.HttpStatusCode;
+})(HttpStatusCode = exports.HttpStatusCode || (exports.HttpStatusCode = {}));
 exports.HttpCodeNames = new Map([
     [200, 'OK'],
     [201, 'Created'],

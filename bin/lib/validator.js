@@ -1,8 +1,8 @@
 "use strict";
 // IMPORTS
 // ================================================================================================
-const errors_1 = require('./errors');
-const util_1 = require('./util');
+const errors_1 = require("./errors");
+const util_1 = require("./util");
 // VALIDATORS
 // ================================================================================================
 exports.validate = function (value, message) {

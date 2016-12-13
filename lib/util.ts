@@ -197,13 +197,13 @@ export function parseDate(value: any, paramName?: string): Date {
 }
 
 export function parseString(value: any, minLength?: number, maxLength?: number): string {
-    if (value === null || value === undefined || value === '') {
-        if (minLength) {
-            return new TypeError(`value must be at least ${minLength} characters long`) as any;
-        }
-        else {
-            return undefined;
-        }
+    if (value === null || value === undefined) {
+        return minLength ? new TypeError(`value is missing`) as any : undefined;
+    }
+    else if (value === '') {
+        return minLength 
+            ? new TypeError(`value must be at least ${minLength} characters long`) as any
+            : undefined;
     }
 
     if (typeof value === 'string') {
