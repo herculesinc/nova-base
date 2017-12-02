@@ -1,6 +1,7 @@
-// IMPORTS
+// MODULE VARIABLES
 // ================================================================================================
-import * as validator from 'validator';
+const INT_REGEX = /^[-+]?[0-9]+$/;
+const NUM_REGEX = /^[-+]?[0-9]+(?:\.[0-9]+)?$/;
 
 // INTERFACES
 // ================================================================================================
@@ -84,11 +85,12 @@ export function areArraysEqual<T>(a1: T[], a2: T[], strict = true, comparator?: 
 // PARSERS
 // ================================================================================================
 export function parseInteger(value: any, min?: number, max?: number): number {
-    var num: number;
+    let num: number;
 
     // parse the value
     if (typeof value === 'string') {
-        if (!validator.isInt(value)) {
+        value = value.trim();
+        if (!INT_REGEX.test(value)) {
             return new TypeError(`'${value}' is not a valid integer`) as any;
         }
         num = Number.parseInt(value, 10);
@@ -121,7 +123,8 @@ export function parseNumber(value: any, min?: number, max?: number): number {
 
     // parse the value
     if (typeof value === 'string') {
-        if (!validator.isFloat(value)) {
+        value = value.trim();
+        if (!NUM_REGEX.test(value)) {
             return new TypeError(`'${value}' is not a valid number`) as any;
         }
         num = Number.parseFloat(value);
@@ -170,11 +173,12 @@ export function parseDate(value: any, paramName?: string): Date {
     var date;
     
     if (typeof value === 'string') {
-        if (validator.isNumeric(value)) {
+        value = value.trim();
+        if (INT_REGEX.test(value)) {
             date = new Date(Number.parseInt(value, 10));
         }
         else {
-            date = new Date(value);
+            date = new Date(value);   
         }
     }
     else if (typeof value === 'number') {

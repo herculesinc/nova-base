@@ -1,60 +1,66 @@
 // IMPORTS
 // =================================================================================================
+import * as uuid from 'uuid/v4';
 import { Dao, Cache, Logger, Notice, NoticeFilter, Task } from './../index';
+import { Action, ActionEnvelope } from './Action';
 import { validate } from './validator';
 import { cleanArray as clean } from './util';
 
 // INTERFACES
 // =================================================================================================
-export interface Action<V,T> {
-    (this: ActionContext, inputs: V): Promise<T>
-}
-    
-export interface ActionAdapter<V> {
-    (this: ActionContext, inputs: any, authInfo?: any, ip?: string): Promise<V>
+interface Requestor {
+    id? : string;
+    ip? : string;
 }
 
-export interface ActionEnvelope<V,T> {
-    action: Action<V,T>;
-    inputs: V;
-}
-
-// ACTION CONTEXT
+// CLASS DEFINITION
 // =================================================================================================
-export class ActionContext {
-    
-    dao         : Dao;
-    cache       : Cache;
-    logger      : Logger;
+export class Operation {
 
-    timestamp   : number;
-    tasks       : Task[];
-    notices     : Notice[];
-    keys        : Set<string>;
-    deferred    : ActionEnvelope<any,any>[];
-    suppressed  : Map<Action<any,any>, Set<Symbol>>;
+    readonly id         : string;
+    readonly name       : string;
+    readonly parentId?  : string;
 
-    sealed      : boolean;
-    
+    readonly startTs    : number;
+    endTs?              : number;
+
+    readonly requestor? : Requestor;
+
+    log?                : Logger;
+    dao?                : Dao;
+    cache?              : Cache;
+
+    tasks?              : Task[];
+    notices?            : Notice[];
+
+    deferred            : ActionEnvelope<any,any>[];
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao: Dao, cache: Cache, logger: Logger, tasks: boolean, notices: boolean, timestamp?: number) {
-        this.dao = dao;
-        this.cache = cache;
-        this.logger = logger;
+    constructor(name: string, tasks: boolean, notices: boolean) {
+        this.id = uuid();
+        this.name = name;
+        this.startTs = Date.now();
 
-        this.timestamp = timestamp || Date.now();
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
-        this.keys = new Set();
         this.deferred = [];
-        this.suppressed = new Map();
-
-        this.sealed = false;
     }
-    
+
     // PUBLIC MEMBERS
     // --------------------------------------------------------------------------------------------
+    setLogger(logger: Logger) {
+        this.log = logger;
+    }
+
+    setDao(dao: Dao) {
+        this.dao = dao;
+    }
+
+    setCache(cache: Cache) {
+        this.cache = cache;
+    }
+
     register(task: Task);
     register(notice: Notice);
     register(taskOrNotice: Task | Notice) {
@@ -72,55 +78,11 @@ export class ActionContext {
         }
     }
 
-    invalidate(key: string) {
-        if (!key) return;
-        this.keys.add(key);
-    }
-
-    isInvalid(key: string): boolean {
-        return this.keys.has(key);
-    }
-    
-	run<V,T>(action: Action<V,T>, inputs: V): Promise<T> {
-        if (this.suppressed.has(action)) {
-            this.logger && this.logger.debug(`Suppressed ${action.name} action`);
-            return Promise.resolve() as Promise<any>;
-        }
-        this.logger && this.logger.debug(`Started ${action.name} action`);
-		return action.call(this, inputs);
-	}
     
     defer<V,T>(action: Action<V,T>, inputs: V): void {
-        validate(!this.sealed, 'Cannot defer an action: the context is sealed');
+        validate(!this.endTs, 'Cannot defer an action: the operation has ended');
         this.deferred.push({ action: action, inputs: inputs });
 	}
-
-    suppress(actionOrActions: Action<any,any> | Action<any,any>[], tag: Symbol) {
-        if (!actionOrActions) return;
-        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
-        for (let action of actions) {
-            let tags = this.suppressed.get(action);
-            if (!tags) {
-                tags = new Set<Symbol>();
-                this.suppressed.set(action, tags);
-            }
-            tags.add(tag);
-        }
-    }
-
-    unsuppress(actionOrActions: Action<any,any> | Action<any,any>[], tag: Symbol) {
-        if (!actionOrActions) return;
-        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
-        for (let action of actions) {
-            let tags = this.suppressed.get(action);
-            if (tags) {
-                tags.delete(tag);
-                if (!tags.size) {
-                    this.suppressed.delete(action);
-                }
-            }
-        }
-    }
 
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------

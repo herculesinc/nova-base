@@ -1,4 +1,5 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const utilities = require("./lib/util");
 const errors_1 = require("./lib/errors");
 // MODULE VARIABLES

@@ -1,6 +1,6 @@
 // IMPORTS
 // =================================================================================================
-import { AuthInputs, Authenticator } from './../../index';
+import { AuthInputs, Authenticator, AuthRequestor } from './../../index';
 import { ActionContext } from './../../lib/Action';
 import { validate } from './../../lib/validator';
 
@@ -32,7 +32,8 @@ export const authenticator: Authenticator<Token, Token> = {
         }
     },
 
-    authenticate(this: ActionContext, token: Token, options: any): Promise<Token> {
+    authenticate(this: ActionContext, requestor: AuthRequestor<Token>, options: any): Promise<Token> {
+        const token = requestor.auth;
         try {
             validate.authorized(token, 'Token is undefined');
             validate.authorized(token.username, 'Invalid user');

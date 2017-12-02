@@ -27,7 +27,7 @@ export class Exception extends Error {
     // CONSTRUCTORS
     // --------------------------------------------------------------------------------------------
     constructor(options: ExceptionOptions)
-    constructor(message: string, status: number)
+    constructor(message: string, status?: number)
     constructor(messageOrOptions: string | ExceptionOptions, status?: number) {
         if (typeof messageOrOptions === 'string') {
             super(messageOrOptions);

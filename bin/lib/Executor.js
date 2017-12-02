@@ -4,9 +4,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
         function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments)).next());
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+Object.defineProperty(exports, "__esModule", { value: true });
 const Action_1 = require("./Action");
 const errors_1 = require("./errors");
 const validator_1 = require("./validator");
@@ -30,7 +31,6 @@ class Executor {
         this.notifier = context.notifier;
         this.limiter = context.limiter;
         this.logger = context.logger || noopLogger;
-        this.settings = context.settings;
         this.action = action;
         this.adapter = adapter;
         if (context.rateLimits) {
@@ -49,19 +49,19 @@ class Executor {
     // --------------------------------------------------------------------------------------------
     execute(inputs, requestor, timestamp) {
         return __awaiter(this, void 0, void 0, function* () {
-            var dao, authInfo, authRequired;
-            var actionCompleted = false;
+            let dao, authInfo, authRequired;
+            let actionCompleted = false;
             const start = process.hrtime();
             try {
                 this.logger.debug(`Executing ${this.action.name} action`);
-                // decode requestor info, if needed
-                if (requestor && typeof requestor !== 'string') {
+                // make sure request can be authenticated if needed
+                if (requestor && requestor.auth) {
                     validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
                     authRequired = true;
                 }
                 // enforce rate limit
                 if (this.rateLimits && requestor) {
-                    const key = (authRequired ? this.authenticator.toOwner(requestor) : requestor);
+                    const key = (authRequired ? this.authenticator.toOwner(requestor.auth) : requestor.ip);
                     const localTry = this.rateLimits.local
                         ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
                         : undefined;
@@ -72,7 +72,7 @@ class Executor {
                 }
                 // open database connection, create context, and authenticate action if needed
                 dao = yield this.database.connect(this.daoOptions);
-                const context = new Action_1.ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier, timestamp);
+                const context = new Action_1.ActionContext(dao, this.cache, this.logger, !!this.dispatcher, !!this.notifier, timestamp);
                 if (authRequired) {
                     authInfo = yield this.authenticator.authenticate.call(context, requestor, this.authOptions);
                 }
@@ -81,7 +81,7 @@ class Executor {
                     inputs = Object.assign({}, this.defaultInputs, inputs);
                 }
                 if (this.adapter) {
-                    inputs = yield this.adapter.call(context, inputs, authInfo || requestor);
+                    inputs = yield this.adapter.call(context, inputs, authInfo, requestor && requestor.ip);
                 }
                 const result = yield this.action.call(context, inputs);
                 yield dao.close(dao.inTransaction ? 'commit' : undefined);
@@ -121,7 +121,7 @@ class Executor {
                 if (!actionCompleted) {
                     error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
                 }
-                return Promise.reject(error);
+                throw error;
             }
         });
     }

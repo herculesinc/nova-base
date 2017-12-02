@@ -35,15 +35,18 @@ const sAction1Result: string = 'suppressed_action_result_1';
 const sAction2Result: string = 'suppressed_action_result_2';
 
 const requestor = {
-    scheme     : 'token',
-    credentials: 'testtoken1'
+    ip          : 'testip',
+    auth: {
+        userId  : 'user1',
+        password: 'password1'
+    }
 };
 const inputs = {
     firstName: 'John',
     lastName : 'Smith'
 };
 
-const toOwnerResult: string = requestor.credentials;
+const toOwnerResult: string = requestor.auth.userId;
 
 let authenticator: Authenticator<any,any>;
 let dao: Dao;
@@ -119,7 +122,6 @@ describe('NOVA-BASE -> Executor tests;', () => {
             notifier     : notifier,
             limiter      : limiter,
             logger       : logger,
-            settings     : { count: 5 },
             rateLimits   : globalRateLimits
         };
 
@@ -309,7 +311,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('adapter should be called with (inputs, authenticatorResult) arguments', () => {
-                expect((adapter as any).calledWithExactly(inputs, authenticatorResult)).to.be.true;
+                expect((adapter as any).calledWithExactly(inputs, sinon.match({ ip: requestor.ip, auth: authenticatorResult }))).to.be.true;
             });
 
             it('adapter should return Promise<adapterResult>', done => {
@@ -425,11 +427,11 @@ describe('NOVA-BASE -> Executor tests;', () => {
     });
 
     describe('executor.execute should call limiter.try with different arguments;', () => {
-        describe('when requestor is a string', () => {
+        describe('when requestor contains only IP address', () => {
             beforeEach(done => {
                 executor = new Executor(context, action, adapter, options);
 
-                executor.execute(inputs, 'requestor').then(() => done()).catch(done);
+                executor.execute(inputs, { ip: 'ipaddress' }).then(() => done()).catch(done);
             });
 
             it('limiter.try should be called once', () => {
@@ -437,15 +439,14 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('limiter.try should be called with global rateLimits arguments', () => {
-                expect((limiter.try as any).calledWithExactly('requestor', globalRateLimits)).to.be.true;
+                expect((limiter.try as any).calledWithExactly('ipaddress', globalRateLimits)).to.be.true;
             });
         });
 
         describe('when using local scope', () => {
             beforeEach(done => {
                 tmpOptions = Object.assign({}, options, { rateLimits: localRateLimits });
-                const tmpContext = Object.assign({}, context);
-                tmpContext.rateLimits = undefined;
+                const tmpContext = Object.assign({}, context, { rateLimits: undefined });
 
                 executor = new Executor(tmpContext, action, adapter, tmpOptions);
 
@@ -493,7 +494,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
             sinon.spy(dao, 'close');
 
-            context.database = database;
+            (context as any).database = database;
 
             executor = new Executor(context, action, adapter, tmpOptions);
 
@@ -515,7 +516,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
 
             executor = new Executor(context, action, adapter, options);
 
-            executor.execute(inputs, 'requestor').then(() => done()).catch(done);
+            executor.execute(inputs, { ip: 'ipaddress' }).then(() => done()).catch(done);
         });
 
         it('cache.clear should not be called', () => {

@@ -11,50 +11,53 @@ import { since, noop } from './util';
 
 // INTERFACES
 // ================================================================================================
+export interface RequestorInfo {
+    readonly ip?    : string;
+    readonly auth?  : any;
+}
+
 export interface ExecutionOptions {
-    authOptions?    : any;
-	daoOptions?     : DaoOptions;
-    rateLimits?     : RateOptions;
-    defaultInputs?  : any;
+    readonly authOptions?   : any;
+	readonly daoOptions?    : DaoOptions;
+    readonly rateLimits?    : RateOptions;
+    readonly defaultInputs? : any;
 }
 
 export interface ExecutorContext {
-    authenticator?  : Authenticator<any,any>;
-    database        : Database;
-    cache?          : Cache;
-    dispatcher?     : Dispatcher;
-    notifier?       : Notifier;
-    limiter?        : RateLimiter;
-    rateLimits?     : RateOptions;
-    logger?         : Logger;
-    settings?       : any;
+    readonly authenticator? : Authenticator<any,any>;
+    readonly database       : Database;
+    readonly cache?         : Cache;
+    readonly dispatcher?    : Dispatcher;
+    readonly notifier?      : Notifier;
+    readonly limiter?       : RateLimiter;
+    readonly rateLimits?    : RateOptions;
+    readonly logger?        : Logger;
 }
 
 interface RateLimits {
-    local?          : RateOptions;
-    global?         : RateOptions;
+    readonly local?         : RateOptions;
+    readonly global?        : RateOptions;
 }
 
 // CLASS DEFINITION
 // ================================================================================================
 export class Executor<V,T> {
 
-    authenticator?  : Authenticator<any,any>;
-    database        : Database;
-    cache           : Cache;
-    dispatcher?     : Dispatcher;
-    notifier?       : Notifier;
-    limiter?        : RateLimiter;
-    logger          : Logger;
-    settings?       : any;
+    readonly authenticator? : Authenticator<any,any>;
+    readonly database       : Database;
+    readonly cache          : Cache;
+    readonly dispatcher?    : Dispatcher;
+    readonly notifier?      : Notifier;
+    readonly limiter?       : RateLimiter;
+    readonly logger         : Logger;
 
-    action          : Action<V,T>;
-    adapter?        : ActionAdapter<V>;
+    readonly action         : Action<V,T>;
+    readonly adapter?       : ActionAdapter<V>;
 
-    authOptions?    : any;
-    daoOptions?     : DaoOptions;
-    rateLimits?     : RateLimits;
-    defaultInputs?  : any;
+    readonly authOptions?   : any;
+    readonly daoOptions?    : DaoOptions;
+    readonly rateLimits?    : RateLimits;
+    readonly defaultInputs? : any;
 
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
@@ -73,7 +76,6 @@ export class Executor<V,T> {
         this.notifier       = context.notifier;
         this.limiter        = context.limiter;
         this.logger         = context.logger || noopLogger;
-        this.settings       = context.settings;
 
         this.action         = action;
         this.adapter        = adapter;
@@ -88,30 +90,30 @@ export class Executor<V,T> {
             this.defaultInputs  = options.defaultInputs;
 
             if (options.rateLimits){
-                this.rateLimits = Object.assign({}, this.rateLimits, { local: options.rateLimits });
+                this.rateLimits = { ...this.rateLimits, ...{ local: options.rateLimits } };
             }
         }
     }
 
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    async execute(inputs: any, requestor?: any | string, timestamp?: number): Promise<T> {
-        var dao: Dao, authInfo: any, authRequired: any;
-        var actionCompleted = false;
+    async execute(inputs: any, requestor?: RequestorInfo, timestamp?: number): Promise<T> {
+        let dao: Dao, authInfo: any, authRequired: any;
+        let actionCompleted = false;
         const start = process.hrtime();
 
         try {
             this.logger.debug(`Executing ${this.action.name} action`);
 
-            // decode requestor info, if needed
-            if (requestor && typeof requestor !== 'string') {
+            // make sure request can be authenticated if needed
+            if (requestor && requestor.auth) {
                 validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
                 authRequired = true;
             }
 
             // enforce rate limit
             if (this.rateLimits && requestor) {
-                const key = (authRequired ? this.authenticator.toOwner(requestor) : requestor) as string;
+                const key = (authRequired ? this.authenticator.toOwner(requestor.auth) : requestor.ip);
 
                 const localTry = this.rateLimits.local
                     ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
@@ -126,18 +128,18 @@ export class Executor<V,T> {
 
             // open database connection, create context, and authenticate action if needed
             dao = await this.database.connect(this.daoOptions);
-            const context = new ActionContext(dao, this.cache, this.logger, this.settings, !!this.dispatcher, !!this.notifier, timestamp);
+            const context = new ActionContext(dao, this.cache, this.logger, !!this.dispatcher, !!this.notifier, timestamp);
             if (authRequired) {
                 authInfo = await this.authenticator.authenticate.call(context, requestor, this.authOptions);
             }
 
             // execute action and release database connection
             if (this.defaultInputs) {
-                inputs = Object.assign({}, this.defaultInputs, inputs);
+                inputs = { ...this.defaultInputs, ...inputs };
             }
 
             if (this.adapter) {
-                inputs = await this.adapter.call(context, inputs, authInfo || requestor);
+                inputs = await this.adapter.call(context, inputs, authInfo, requestor && requestor.ip);
             }
             
             const result: T | Error = await this.action.call(context, inputs);
@@ -184,7 +186,7 @@ export class Executor<V,T> {
             if (!actionCompleted) {
                 error = wrapMessage(error, `Failed to execute ${this.action.name} action`);
             }
-            return Promise.reject<any>(error);
+            throw error;
         }
     }
 

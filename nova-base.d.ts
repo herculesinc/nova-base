@@ -6,20 +6,24 @@ declare module "nova-base" {
 
     // ACTION
     // --------------------------------------------------------------------------------------------
+    export interface RequestorInfo {
+        readonly auth?  : any;
+        readonly ip?    : string;
+    }
+
     export interface Action<V,T> {
-        (this: ActionContext, inputs: V): Promise<T>
+        (this: ActionContext, inputs: V): Promise<T>;
     }
         
     export interface ActionAdapter<V> {
-        (this: ActionContext, inputs: any, authInfo?: any): Promise<V>
+        (this: ActionContext, inputs: any, authInfo?: any, ip?: string): Promise<V>;
     }
 
     export interface ActionContext {
-        dao         : Dao;
-        cache       : Cache;
-        logger      : Logger;
-        settings    : any;
-        timestamp   : number;
+        readonly dao        : Dao;
+        readonly cache      : Cache;
+        readonly logger     : Logger;
+        readonly timestamp  : number;
 
         register(task: Task);
         register(notice: Notice);
@@ -43,33 +47,33 @@ declare module "nova-base" {
     // EXECUTOR
     // --------------------------------------------------------------------------------------------
     export interface ExecutionOptions {
-        authOptions?    : any;
-        daoOptions?     : DaoOptions;
-        rateLimits?     : RateOptions;
-        defaultInputs?  : any;
+        readonly authOptions?   : any;
+        readonly daoOptions?    : DaoOptions;
+        readonly rateLimits?    : RateOptions;
+        readonly defaultInputs? : any;
     }
 
     export interface ExecutorContext {
-        authenticator?  : Authenticator<any,any>;
-        database        : Database;
-        cache?          : Cache;
-        dispatcher?     : Dispatcher;
-        notifier?       : Notifier;
-        limiter?        : RateLimiter;
-        rateLimits?     : RateOptions;
-        logger?         : Logger; 
-        settings?       : any;
+        readonly authenticator? : Authenticator<any,any>;
+        readonly database       : Database;
+        readonly cache?         : Cache;
+        readonly dispatcher?    : Dispatcher;
+        readonly notifier?      : Notifier;
+        readonly limiter?       : RateLimiter;
+        readonly rateLimits?    : RateOptions;
+        readonly logger?        : Logger; 
+        readonly settings?      : any;
     }
 
     export class Executor<V,T> {
 
-        action          : Action<V,T>;
-        authenticator?  : Authenticator<any,any>;
-        logger?         : Logger;
+        readonly action         : Action<V,T>;
+        readonly authenticator? : Authenticator<any,any>;
+        readonly logger?        : Logger;
 
         constructor(context: ExecutorContext, action: Action<V,T>, adapter?: ActionAdapter<V>, options?: ExecutionOptions);
 
-        execute(inputs: any, requetor?: any | string, timestamp?: number): Promise<T>;
+        execute(inputs: any, requetor?: RequestorInfo, timestamp?: number): Promise<T>;
     }
 
     // AUTHENTICATOR
@@ -77,12 +81,17 @@ declare module "nova-base" {
     export interface Authenticator<V,T> {
         decode(inputs: AuthInputs): V;
         toOwner(authResult: V | T): string;
-        authenticate(this: ActionContext, inputs: V, options: any): Promise<T>;
+        authenticate(this: ActionContext, requestor: AuthRequestor<V>, options: any): Promise<T>;
     }
 
     export interface AuthInputs {
-        scheme      : string;
-        credentials : string;
+        readonly scheme     : string;
+        readonly credentials: string;
+    }
+
+    export interface AuthRequestor<V> {
+        readonly auth       : V;
+        readonly ip?        : string;
     }
 
     // DATABASE
@@ -237,7 +246,7 @@ declare module "nova-base" {
         cause?      : Error;
 
         constructor(options: ExceptionOptions);
-        constructor(message: string, status: number);
+        constructor(message: string, status?: number);
 
         isClientError: boolean;
         isServerError: boolean; 

@@ -13,12 +13,17 @@ import { wrapMessage, isError } from './lib/errors';
 export interface Authenticator<V,T> {
     decode(inputs: AuthInputs): V;
     toOwner(authResult: V | T): string;
-    authenticate(this: ActionContext, inputs: V, options: any): Promise<T>;
+    authenticate(this: ActionContext, requestor: AuthRequestor<V>, options: any): Promise<T>;
 }
 
 export interface AuthInputs {
-    scheme      : string;
-    credentials : string;
+    readonly scheme     : string;
+    readonly credentials: string;
+}
+
+export interface AuthRequestor<V> {
+    readonly auth       : V;
+    readonly ip?        : string;
 }
 
 // DATABASE

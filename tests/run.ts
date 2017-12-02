@@ -21,10 +21,7 @@ const context: ExecutorContext = {
     dispatcher      : new MockDispatcher(),
     notifier        : new MockNotifier(),
     limiter         : new MockRateLimiter(),
-    logger          : new MockLogger(),
-    settings: {
-        count       : 5
-    }
+    logger          : new MockLogger()
 };
 
 const testTag = Symbol();
@@ -55,7 +52,7 @@ async function helloWorldAction(this: ActionContext, inputs: { user: string, nam
     // should execute inner action
     await this.run(innerAction, { message: 'test3 message'});
 
-    return `Hello, my name is ${inputs.name}, count=${this.settings.count}, user=${inputs.user}`;
+    return `Hello, my name is ${inputs.name}, user=${inputs.user}`;
 }
 
 function deferredAction(this: ActionContext, inputs: { message: string }): Promise<void> {
@@ -72,7 +69,7 @@ const executor = new Executor(context, helloWorldAction, helloWorldAdapter, opti
 
 // TESTS
 // ================================================================================================
-executor.execute({ firstName: 'John', lastName: 'Smith'}, { username: 'user1', password: 'password1'})
+executor.execute({ firstName: 'John', lastName: 'Smith'}, { auth: { username: 'user1', password: 'password1'}})
     .then((result) => {
         console.log(result);
     });

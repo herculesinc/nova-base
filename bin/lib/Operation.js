@@ -1,23 +1,33 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+// IMPORTS
+// =================================================================================================
+const uuid = require("uuid/v4");
 const validator_1 = require("./validator");
 const util_1 = require("./util");
-// ACTION CONTEXT
+// CLASS DEFINITION
 // =================================================================================================
-class ActionContext {
+class Operation {
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
-    constructor(dao, cache, logger, tasks, notices, timestamp) {
-        this.dao = dao;
-        this.cache = cache;
-        this.logger = logger;
-        this.timestamp = timestamp || Date.now();
+    constructor(name, tasks, notices) {
+        this.id = uuid();
+        this.name = name;
+        this.startTs = Date.now();
         this.tasks = tasks ? [] : undefined;
         this.notices = notices ? [] : undefined;
-        this.keys = new Set();
         this.deferred = [];
-        this.suppressed = new Map();
-        this.sealed = false;
+    }
+    // PUBLIC MEMBERS
+    // --------------------------------------------------------------------------------------------
+    setLogger(logger) {
+        this.log = logger;
+    }
+    setDao(dao) {
+        this.dao = dao;
+    }
+    setCache(cache) {
+        this.cache = cache;
     }
     register(taskOrNotice) {
         if (!taskOrNotice)
@@ -33,52 +43,9 @@ class ActionContext {
             this.clearNotices(actionOrFilter);
         }
     }
-    invalidate(key) {
-        if (!key)
-            return;
-        this.keys.add(key);
-    }
-    isInvalid(key) {
-        return this.keys.has(key);
-    }
-    run(action, inputs) {
-        if (this.suppressed.has(action)) {
-            this.logger && this.logger.debug(`Suppressed ${action.name} action`);
-            return Promise.resolve();
-        }
-        this.logger && this.logger.debug(`Started ${action.name} action`);
-        return action.call(this, inputs);
-    }
     defer(action, inputs) {
-        validator_1.validate(!this.sealed, 'Cannot defer an action: the context is sealed');
+        validator_1.validate(!this.endTs, 'Cannot defer an action: the operation has ended');
         this.deferred.push({ action: action, inputs: inputs });
-    }
-    suppress(actionOrActions, tag) {
-        if (!actionOrActions)
-            return;
-        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
-        for (let action of actions) {
-            let tags = this.suppressed.get(action);
-            if (!tags) {
-                tags = new Set();
-                this.suppressed.set(action, tags);
-            }
-            tags.add(tag);
-        }
-    }
-    unsuppress(actionOrActions, tag) {
-        if (!actionOrActions)
-            return;
-        const actions = (Array.isArray(actionOrActions) ? actionOrActions : [actionOrActions]);
-        for (let action of actions) {
-            let tags = this.suppressed.get(action);
-            if (tags) {
-                tags.delete(tag);
-                if (!tags.size) {
-                    this.suppressed.delete(action);
-                }
-            }
-        }
     }
     // PRIVATE MEMBERS
     // --------------------------------------------------------------------------------------------
@@ -154,5 +121,5 @@ class ActionContext {
         }
     }
 }
-exports.ActionContext = ActionContext;
-//# sourceMappingURL=Action.js.map
+exports.Operation = Operation;
+//# sourceMappingURL=Operation.js.map
