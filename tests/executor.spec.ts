@@ -311,7 +311,7 @@ describe('NOVA-BASE -> Executor tests;', () => {
             });
 
             it('adapter should be called with (inputs, authenticatorResult) arguments', () => {
-                expect((adapter as any).calledWithExactly(inputs, sinon.match({ ip: requestor.ip, auth: authenticatorResult }))).to.be.true;
+                expect((adapter as any).calledWithExactly(inputs, authenticatorResult, requestor.ip)).to.be.true;
             });
 
             it('adapter should return Promise<adapterResult>', done => {
