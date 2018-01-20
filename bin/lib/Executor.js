@@ -1,4 +1,12 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const Action_1 = require("./Action");
 const errors_1 = require("./errors");
@@ -39,81 +47,83 @@ class Executor {
     }
     // PUBLIC METHODS
     // --------------------------------------------------------------------------------------------
-    async execute(inputs, requestor, timestamp) {
-        let dao, authInfo, authRequired;
-        let actionCompleted = false;
-        const start = process.hrtime();
-        try {
-            this.logger.debug(`Executing ${this.action.name} action`);
-            // make sure request can be authenticated if needed
-            if (requestor && requestor.auth) {
-                validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
-                authRequired = true;
-            }
-            // enforce rate limit
-            if (this.rateLimits && requestor) {
-                const key = (authRequired ? this.authenticator.toOwner(requestor.auth) : requestor.ip);
-                const localTry = this.rateLimits.local
-                    ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
-                    : undefined;
-                const globalTry = this.rateLimits.global
-                    ? this.limiter.try(key, this.rateLimits.global)
-                    : undefined;
-                await Promise.all([localTry, globalTry]);
-            }
-            // open database connection, create context, and authenticate action if needed
-            dao = await this.database.connect(this.daoOptions);
-            const context = new Action_1.ActionContext(dao, this.cache, this.logger, !!this.dispatcher, !!this.notifier, timestamp);
-            if (authRequired) {
-                authInfo = await this.authenticator.authenticate.call(context, requestor, this.authOptions);
-            }
-            // execute action and release database connection
-            if (this.defaultInputs) {
-                inputs = Object.assign({}, this.defaultInputs, inputs);
-            }
-            if (this.adapter) {
-                inputs = await this.adapter.call(context, inputs, authInfo, requestor && requestor.ip);
-            }
-            const result = await this.action.call(context, inputs);
-            await dao.close(dao.inTransaction ? 'commit' : undefined);
-            // seal the context to prohibit addition of deferred actions
-            context.sealed = true;
-            // execute deferred actions
-            const deferredActionPromises = [];
-            if (context.deferred.length) {
-                this.logger.log(`Executing ${context.deferred.length} deferred actions`);
-                for (let dae of context.deferred) {
-                    deferredActionPromises.push(dae.action.call(context, dae.inputs));
+    execute(inputs, requestor, timestamp) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let dao, authInfo, authRequired;
+            let actionCompleted = false;
+            const start = process.hrtime();
+            try {
+                this.logger.debug(`Executing ${this.action.name} action`);
+                // make sure request can be authenticated if needed
+                if (requestor && requestor.auth) {
+                    validator_1.validate(this.authenticator, 'Cannot authenticate: authenticator is undefined');
+                    authRequired = true;
                 }
-                await Promise.all(deferredActionPromises);
+                // enforce rate limit
+                if (this.rateLimits && requestor) {
+                    const key = (authRequired ? this.authenticator.toOwner(requestor.auth) : requestor.ip);
+                    const localTry = this.rateLimits.local
+                        ? this.limiter.try(`${key}::${this.action.name}`, this.rateLimits.local)
+                        : undefined;
+                    const globalTry = this.rateLimits.global
+                        ? this.limiter.try(key, this.rateLimits.global)
+                        : undefined;
+                    yield Promise.all([localTry, globalTry]);
+                }
+                // open database connection, create context, and authenticate action if needed
+                dao = yield this.database.connect(this.daoOptions);
+                const context = new Action_1.ActionContext(dao, this.cache, this.logger, !!this.dispatcher, !!this.notifier, timestamp);
+                if (authRequired) {
+                    authInfo = yield this.authenticator.authenticate.call(context, requestor, this.authOptions);
+                }
+                // execute action and release database connection
+                if (this.defaultInputs) {
+                    inputs = Object.assign({}, this.defaultInputs, inputs);
+                }
+                if (this.adapter) {
+                    inputs = yield this.adapter.call(context, inputs, authInfo, requestor && requestor.ip);
+                }
+                const result = yield this.action.call(context, inputs);
+                yield dao.close(dao.inTransaction ? 'commit' : undefined);
+                // seal the context to prohibit addition of deferred actions
+                context.sealed = true;
+                // execute deferred actions
+                const deferredActionPromises = [];
+                if (context.deferred.length) {
+                    this.logger.log(`Executing ${context.deferred.length} deferred actions`);
+                    for (let dae of context.deferred) {
+                        deferredActionPromises.push(dae.action.call(context, dae.inputs));
+                    }
+                    yield Promise.all(deferredActionPromises);
+                }
+                // invalidate cache items
+                if (context.keys.size > 0) {
+                    this.cache.clear(Array.from(context.keys));
+                }
+                // send out tasks and notices
+                const taskPromise = this.dispatchTasks(context.tasks);
+                const noticePromise = this.sendNotices(context.notices);
+                yield Promise.all([taskPromise, noticePromise]);
+                // log executiong time and return the result
+                actionCompleted = true;
+                this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
+                // if result is not an error, return it
+                if (result instanceof Error)
+                    throw result;
+                return result;
             }
-            // invalidate cache items
-            if (context.keys.size > 0) {
-                this.cache.clear(Array.from(context.keys));
+            catch (error) {
+                // if DAO connection is open, close it
+                if (dao && dao.isActive) {
+                    yield dao.close(dao.inTransaction ? 'rollback' : undefined);
+                }
+                // update the error message (if needed), and rethrow the error
+                if (!actionCompleted) {
+                    error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
+                }
+                throw error;
             }
-            // send out tasks and notices
-            const taskPromise = this.dispatchTasks(context.tasks);
-            const noticePromise = this.sendNotices(context.notices);
-            await Promise.all([taskPromise, noticePromise]);
-            // log executiong time and return the result
-            actionCompleted = true;
-            this.logger.log(`Executed ${this.action.name} action`, { time: util_1.since(start) });
-            // if result is not an error, return it
-            if (result instanceof Error)
-                throw result;
-            return result;
-        }
-        catch (error) {
-            // if DAO connection is open, close it
-            if (dao && dao.isActive) {
-                await dao.close(dao.inTransaction ? 'rollback' : undefined);
-            }
-            // update the error message (if needed), and rethrow the error
-            if (!actionCompleted) {
-                error = errors_1.wrapMessage(error, `Failed to execute ${this.action.name} action`);
-            }
-            throw error;
-        }
+        });
     }
     // PRIVATE METHODS
     // --------------------------------------------------------------------------------------------
