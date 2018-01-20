@@ -1,6 +1,6 @@
 {
   "name": "nova-base",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Foundation for Nova API framework",
   "keywords": [
     "nova",
@@ -22,7 +22,7 @@
     "url": "https://github.com/herculesinc/nova-base.git"
   },
   "engines": {
-    "node": "6.9.x"
+    "node": "8.9.x"
   },
   "devDependencies": {
     "chai": "3.5.x",
