@@ -1,15 +1,12 @@
 {
   "name": "nova-base",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "Foundation for Nova API framework",
   "keywords": [
     "nova",
     "action",
     "framework"
   ],
-  "scripts": {
-    "setup": "npm install && typings install"
-  },
   "main": "index.js",
   "typings": "nova-base.d.ts",
   "license": "MIT",
@@ -31,8 +28,7 @@
     "gulp-mocha": "2.2.x",
     "gulp-util": "3.0.x",
     "mocha": "2.5.x",
-    "sinon": "1.17.x",
-    "typings": "1.3.x"
+    "sinon": "1.17.x"
   },
   "dependencies": {
     "uuid": "3.1.x"
